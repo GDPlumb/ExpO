@@ -2,134 +2,69 @@
 import numpy as np
 import tensorflow as tf
 
-from dataset import Dataset
+from Data import DataManager
+from Models import MLP
+from Regularizers import Regularizer
 from SLIM import SLIM
 
-def eval(X_train, y_train, X_val, y_val, X_test, y_test, regularizer = "None", name = "tb"):
+def eval(source, regularizer = None, name = "tb"):
 
     # Reset TF graph (avoids issues with repeat exeriments)
     tf.reset_default_graph()
-
-    # Gives access to minibatches of the dataset
-    data = Dataset(X_train, y_train)
     
-    # Basic data stats
-    n = X_train.shape[0]
-    n_input = X_train.shape[1]
-
-    # Optimization Parameters
-    learning_rate = 0.01
-    training_epochs = 2000
+    # Dataset Parameters
     batch_size = 20
+    reg_batch_size = 2
+    
+    if regularizer != None:
+        data = DataManager(source, train_batch_size = batch_size, reg_batch_size = reg_batch_size)
+    else:
+        data = DataManager(source, train_batch_size = batch_size)
+
+    n = data.X_train.shape[0]
+    n_input = data.X_train.shape[1]
+    
+    # Regularizer Parameters
+    if regularizer != None:
+        # Weight of the regularization term in the loss function
+        c = tf.constant(100.0)
+        #Number of neighbors to hallucinate per point
+        num_samples = np.max((20, np.int(1.2 * n_input)))
 
     # Network Parameters
-    n_hidden_1 = 100
-    n_hidden_2 = 100
-    #n_hidden_3 = 100
-    
-    # Graph inputs
+    shape = [n_input, 100, 100, 1]
+
+    # Training Parameters
+    learning_rate = 0.01
+    training_epochs = 2000
+
+    # Graph inputs - these names are tied into the DataManager class
     X = tf.placeholder("float", [None, n_input], name = "X_in")
     Y = tf.placeholder("float", [None], name = "Y_in")
-    
-    # Configure Regularizer
-    if regularizer != "None":
-        # Parameters
-        c = tf.constant(100.0)
-        num_points = 2 #Number to use to approximate the regularizer per minibatch
-        num_samples = np.max((20, np.int(1.2 * n_input))) #Number of neighbors to hallucinate per point
-        # Use a second copy of the dataset to get regularizer minibatches
-        data_reg = Dataset(X_train, y_train)
-        # Placeholder to pass the regularizer minibatches in
+    if regularizer != None:
         X_reg = tf.placeholder("float", [None, n_input], name = "X_reg")
+
+    # Link the graph inputs into the DataManager so its train_feed() and eval_feed() functions work
+    if regularizer != None:
+        data.link_graph(X, Y, X_reg = X_reg)
+    else:
+        data.link_graph(X, Y)
     
-    # Define the data feeding process
-    def training_feed():
-        batch_x, batch_y = data.next_batch(batch_size)
-        if regularizer == "None":
-            return {X: batch_x, Y: batch_y}
-        else:
-            batch_x_reg, batch_y_reg = data_reg.next_batch(num_points)
-            return {X: batch_x, Y: batch_y, X_reg: batch_x_reg}
-            
-    def eval_feed(test):
-        if test:
-            X_eval = X_test
-            Y_eval = y_test
-        else:
-            X_eval = X_train
-            Y_eval = y_train
-        indices = np.random.choice(X_eval.shape[0], 20, replace = False)
-        batch_x = X_eval[indices]
-        batch_y = Y_eval[indices]
-        if regularizer == "None":
-            return {X: batch_x, Y: batch_y}
-        else:
-            indices_reg = np.random.choice(X_eval.shape[0], 5, replace = False)
-            batch_x_reg = X_eval[indices_reg]
-            return {X: batch_x, Y: batch_y, X_reg: batch_x_reg}
+    # Build the model
+    network = MLP(shape)
+    with tf.variable_scope("model", reuse = tf.AUTO_REUSE):
+        pred = network.model(X)
 
-    # Store layers weight & bias
-    with tf.name_scope("Weights") as scope:
-        weights = {
-            'h1': tf.Variable(tf.random_normal([n_input, n_hidden_1]), name = "l1"),
-            'h2': tf.Variable(tf.random_normal([n_hidden_1, n_hidden_2]), name = "l2"),
-            #'h3': tf.Variable(tf.random_normal([n_hidden_1, n_hidden_3]), name = "l3"),
-            'out': tf.Variable(tf.random_normal([n_hidden_2, 1]), name = "out")
-        }
-    with tf.name_scope("Biases") as scope:
-        biases = {
-            'b1': tf.Variable(tf.random_normal([n_hidden_1]), name = "l1"),
-            'b2': tf.Variable(tf.random_normal([n_hidden_2]), name = "l2"),
-            #'b3': tf.Variable(tf.random_normal([n_hidden_2]), name = "l3"),
-            'out': tf.Variable(tf.random_normal([1]), name = "out")
-        }
-
-    # Define model
-    def multilayer_perceptron(x):
-        with tf.name_scope("Layer1") as scope:
-            layer_1 = tf.add(tf.matmul(x, weights['h1']), biases['b1'])
-            rep_1 = tf.nn.relu(layer_1)
-        with tf.name_scope("Layer2") as scope:
-            layer_2 = tf.add(tf.matmul(rep_1, weights['h2']), biases['b2'])
-            rep_2 = tf.nn.relu(layer_2)
-        with tf.name_scope("Output") as scope:
-            out_layer = tf.matmul(rep_2, weights['out']) + biases['out']
-            return tf.squeeze(out_layer)
-    pred = multilayer_perceptron(X)
-
+    # Build the regularizer
     if regularizer == "Causal":
-        # Approximates the Causal metric with the average MSE of the LLMs
-        def regularizer(x):
-            with tf.name_scope("CausalRegularizer") as scope:
-                def compute_mse(x):
-                    with tf.name_scope("GenerateNeighborhood") as scope:
-                        x_expanded = tf.reshape(tf.tile(x, [num_samples]), [num_samples, n_input])
-                        noise = tf.random_normal([num_samples, n_input], stddev = 0.1)
-                        constant_term = tf.ones([num_samples, 1])
-                        x_local = tf.stop_gradient(tf.concat([x_expanded + noise, constant_term], 1))
-            
-                    with tf.name_scope("ComputeProjectionMatrix") as scope:
-                        P = tf.stop_gradient(tf.matmul(tf.matrix_inverse(tf.matmul(tf.transpose(x_local), x_local)), tf.transpose(x_local)))
-            
-                    with tf.name_scope("ModelPredictLocal") as scope:
-                        y = multilayer_perceptron(x_local[:, :-1])
-            
-                    with tf.name_scope("ComputeCoefficients") as scope:
-                        B = tf.einsum('ij,j->i', P, y)
-                        
-                    with tf.name_scope("LinearPredictLocal") as scope:
-                        y_lin = tf.einsum('ij,j->i', x_local, B)
-                    
-                    with tf.name_scope("LocalLinearMSE") as scope:
-                        return tf.losses.mean_squared_error(labels = y, predictions = y_lin)
-                return tf.reduce_mean(tf.map_fn(compute_mse, x))
-        reg = regularizer(X_reg)
+        regularizer = Regularizer(network.model, n_input, num_samples)
+        reg = regularizer.causal(X_reg)
 
     # Define the loss and optimization process
     accuracy_loss = tf.losses.mean_squared_error(labels = Y, predictions = pred)
     tf.summary.scalar("MSE", accuracy_loss)
     
-    if regularizer == "None":
+    if regularizer == None:
         loss_op = accuracy_loss
     else:
         loss_op = accuracy_loss + c * reg
@@ -141,15 +76,14 @@ def eval(X_train, y_train, X_val, y_val, X_test, y_test, regularizer = "None", n
     optimizer = tf.train.AdamOptimizer(learning_rate = learning_rate)
     train_op = optimizer.minimize(loss_op)
 
-    # Start the experiment
-    out = {}
+    # Train the model
     init = tf.global_variables_initializer()
 
     config = tf.ConfigProto()
     config.gpu_options.allow_growth=True
     with tf.Session(config=config) as sess:
         train_writer = tf.summary.FileWriter(name + "/train", sess.graph)
-        test_writer = tf.summary.FileWriter(name + "/test")
+        val_writer = tf.summary.FileWriter(name + "/val")
         
         sess.run(init)
         
@@ -158,26 +92,30 @@ def eval(X_train, y_train, X_val, y_val, X_test, y_test, regularizer = "None", n
         for epoch in range(training_epochs):
             total_batch = int(n / batch_size)
             for i in range(total_batch):
-                dict = training_feed()
+                dict = data.train_feed()
                 sess.run(train_op, feed_dict=dict)
-            if epoch % 10 == 0:
-                dict = eval_feed(False)
+            
+            if epoch % 20 == 0:
+                dict = data.eval_feed()
                 summary = sess.run(summary_op, feed_dict = dict)
                 train_writer.add_summary(summary, epoch)
-                dict = eval_feed(True)
+                
+                dict = data.eval_feed(val = True)
                 summary = sess.run(summary_op, feed_dict = dict)
-                test_writer.add_summary(summary, epoch)
+                val_writer.add_summary(summary, epoch)
 
         train_writer.close()
-        test_writer.close()
+        val_writer.close()
 
-        test_acc, test_pred = sess.run([accuracy_loss, pred], feed_dict = {X: X_test, Y: y_test})
+        # Evaluate the model
+        test_acc, test_pred = sess.run([accuracy_loss, pred], feed_dict = {X: data.X_test, Y: data.y_test})
 
+        out = {}
         print("Test MSE: ", test_acc)
         out["test_acc"] = np.float64(test_acc)
 
         print("Fitting SLIM")
-        exp_slim = SLIM(X_train, pred.eval({X: X_train}), X_val, pred.eval({X: X_val}))
+        exp_slim = SLIM(data.X_train, pred.eval({X: data.X_train}), data.X_val, pred.eval({X: data.X_val}))
 
         print("Computing Metrics")
         num_perturbations = 5
@@ -186,12 +124,12 @@ def eval(X_train, y_train, X_val, y_val, X_test, y_test, regularizer = "None", n
         def generate_neighbor(x):
             return x + 0.1 * np.random.normal(loc = 0.0, scale = 1.0, size = n_input)
             
-        n = X_test.shape[0]
+        n = data.X_test.shape[0]
         standard_metric = 0.0
         causal_metric = 0.0
         stability_metric = 0.0
         for i in range(n):
-            x = X_test[i, :]
+            x = data.X_test[i, :]
 
             e_slim = exp_slim.explain(x)
             coefs_slim = e_slim["coefs"]
