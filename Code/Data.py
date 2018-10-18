@@ -56,8 +56,11 @@ class DataManager():
             batch_x_reg = X_eval[indices_reg]
             return {self.X: batch_x, self.Y: batch_y, self.X_reg: batch_x_reg}
 
+    def load_data(self):
+        return pd.read_csv(self.source, header = None).dropna()
+
     def load_normalize_data(self, thresh = .0000000001):
-        df_train = pd.read_csv(self.source, header = None).dropna()
+        df_train = self.load_data()
         
         # Split train, test, valid - Change up train valid test every iteration
         df_train, df_test = train_test_split(df_train, test_size = 0.5)
