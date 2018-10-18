@@ -44,13 +44,22 @@ class ClassificationDataManager(DataManager):
 
         # Convert to np arrays
         X_train = X_train.values
-        y_train = df_train[df_train.columns[-1]].values
+        y_train_idx = df_train[df_train.columns[-1]].values
+        # idx -> one-hot
+        y_train = np.zeros((X_train.shape[0], 3))
+        y_train[np.arange(y_train.shape[0]), y_train_idx] = 1
 
         X_valid = X_valid.values
-        y_valid = df_valid[df_valid.columns[-1]].values
+        y_valid_idx = df_valid[df_valid.columns[-1]].values
+        # idx -> one-hot
+        y_valid = np.zeros((X_valid.shape[0], 3))
+        y_valid[np.arange(y_valid.shape[0]), y_valid_idx] = 1
 
         X_test = X_test.values
-        y_test = df_test[df_test.columns[-1]].values
+        y_test_idx = df_test[df_test.columns[-1]].values
+        # idx -> one-hot
+        y_test = np.zeros((X_test.shape[0], 3))
+        y_test[np.arange(y_test.shape[0]), y_test_idx] = 1
 
         return (X_train, y_train, X_valid, y_valid, X_test, y_test,
                 np.array(X_train_mean), np.array(X_train_stddev))
@@ -85,4 +94,3 @@ class Support2DataManager(ClassificationDataManager):
     def load_data(self):
         # TODO (alshedivat): implement me.
         raise NotImplementedError
-
