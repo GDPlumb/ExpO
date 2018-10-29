@@ -12,9 +12,9 @@ from Merge import merge
 np.random.seed(1)
 tf.set_random_seed(1)
 
-datasets = ["autompgs", "communities", "day", "happiness", "housing", "music", "winequality-red"]
+datasets = ["communities"] #["autompgs", "communities", "day", "happiness", "housing", "music", "winequality-red"]
 trials = []
-for i in range(10):
+for i in range(1):
     trials.append(i + 1)
 args = itertools.product(datasets, trials)
 
@@ -26,7 +26,7 @@ def run(args):
     dataset = args[0]
     trial = args[1]
 
-    out = eval("../Datasets/" + dataset  + ".csv", "regression", name = "TB/" + dataset + str(trial))
+    out = eval("regression","../Datasets/" + dataset  + ".csv", [100,100], 0.01, name = "TF/" + dataset + str(trial))
 
     file = open("Trials/" + dataset + "_" + str(trial) + ".json", "w")
     json.dump(out, file)

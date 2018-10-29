@@ -6,7 +6,7 @@ from Models import MLP
 from Regularizers import Regularizer
 from SLIM import SLIM
 
-def eval(source, manager, regularizer=None, name="tb"):
+def eval(manager, source, hidden_layer_sizes, learning_rate, regularizer = None, c = 1, name = "tb"):
 
     if manager == "regression":
         from Data import DataManager
@@ -16,14 +16,16 @@ def eval(source, manager, regularizer=None, name="tb"):
     # Reset TF graph (avoids issues with repeat experiments)
     tf.reset_default_graph()
     
-    # Dataset Parameters
-    batch_size = 20
-    reg_batch_size = 1 #2
-    
+    # Parameters
+    batch_size = 32
+    reg_batch_size = 2
+    training_epochs = 5000
+
+    # Get Data
     if regularizer != None:
-        data = DataManager(source, train_batch_size=batch_size, reg_batch_size=reg_batch_size)
+        data = DataManager(source, train_batch_size = batch_size, reg_batch_size = reg_batch_size)
     else:
-        data = DataManager(source, train_batch_size=batch_size)
+        data = DataManager(source, train_batch_size = batch_size)
 
     n = data.X_train.shape[0]
     n_input = data.X_train.shape[1]
@@ -32,18 +34,17 @@ def eval(source, manager, regularizer=None, name="tb"):
     # Regularizer Parameters
     if regularizer != None:
         # Weight of the regularization term in the loss function
-        c = tf.constant(100.0)
+        c = tf.constant(c)
         #Number of neighbors to hallucinate per point
-        num_samples = np.max((20, np.int(1.2 * n_input)))
+        num_samples = np.max((20, np.int(2 * n_input)))
 
     # Network Parameters
-    shape = [n_input, 100, 100, n_out]
+    shape = [n_input]
+    for size in hidden_layer_sizes:
+        shape.append(size)
+    shape.append(n_out)
 
-    # Training Parameters
-    learning_rate = 0.01
-    training_epochs = 2000
-
-    # Graph inputs - these names are tied into the DataManager class
+    # Graph inputs
     X = tf.placeholder("float", [None, n_input], name = "X_in")
     Y = tf.placeholder("float", [None, n_out], name = "Y_in")
     if regularizer != None:
@@ -90,6 +91,9 @@ def eval(source, manager, regularizer=None, name="tb"):
     # Train the model
     init = [tf.global_variables_initializer(), tf.local_variables_initializer()]
 
+    saver = tf.train.Saver(max_to_keep=1) #We are going to keep the model with the best loss
+    best_loss = np.inf
+
     config = tf.ConfigProto()
     config.gpu_options.allow_growth = True
     with tf.Session(config=config) as sess:
@@ -112,20 +116,28 @@ def eval(source, manager, regularizer=None, name="tb"):
                 train_writer.add_summary(summary, epoch)
                 
                 dict = data.eval_feed(val = True)
-                summary = sess.run(summary_op, feed_dict = dict)
+                summary, val_loss = sess.run([summary_op, loss_op], feed_dict = dict)
                 val_writer.add_summary(summary, epoch)
+
+                #Save best model
+                if val_loss < best_loss:
+                    print(val_loss)
+                    best_loss = val_loss
+                    saver.save(sess, name + "/model.cpkt")
 
         train_writer.close()
         val_writer.close()
 
-        # Evaluate the model
+        # Evaluate the chosen model
+        saver.restore(sess, name + "/model.cpkt")
+
         if manager == "regression":
             test_acc, test_pred = sess.run([model_loss, pred], feed_dict = {X: data.X_test, Y: data.y_test})
         elif manager == "hospital_readmission":
             test_acc, test_pred = sess.run([acc_op, pred], feed_dict={X: data.X_test, Y: data.y_test})
 
         out = {}
-        print("Test acc: ", test_acc)
+        print("Test Acc: ", test_acc)
         out["test_acc"] = np.float64(test_acc)
 
         print("Fitting SLIM")
@@ -170,9 +182,9 @@ def eval(source, manager, regularizer=None, name="tb"):
         causal_metric /= num_perturbations * n
         stability_metric /= num_perturbations * n
 
-        standard_metric = np.sqrt(standard_metric)
-        causal_metric = np.sqrt(causal_metric)
-        standard_metric = np.sqrt(stability_metric)
+        standard_metric = standard_metric
+        causal_metric = causal_metric
+        standard_metric = stability_metric
 
         print("Standard Metric: ", standard_metric)
         print("Causal Metric: ", causal_metric)
