@@ -6,7 +6,7 @@ class MLP():
     # shape[end] = output dimension
     def __init__(self, shape):
         self.shape = shape
-        self.weight_init = tf.random_normal_initializer()
+        self.weight_init = tf.contrib.layers.xavier_initializer() #tf.random_normal_initializer()
         self.bias_init = tf.constant_initializer(0.0)
     
     def layer(self, input, input_size, output_size):

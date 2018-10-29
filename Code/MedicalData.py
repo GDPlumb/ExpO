@@ -6,11 +6,9 @@ from __future__ import print_function
 
 import numpy as np
 import pandas as pd
-
 from sklearn.model_selection import train_test_split
 
 from Data import DataManager
-
 
 class ClassificationDataManager(DataManager):
     """Data manager that doesn't try to normalize targets."""

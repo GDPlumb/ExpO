@@ -6,7 +6,7 @@ from Models import MLP
 from Regularizers import Regularizer
 from SLIM import SLIM
 
-def eval(manager, source, hidden_layer_sizes, learning_rate, regularizer = None, c = 1, name = "tb"):
+def eval(manager, source, hidden_layer_sizes, learning_rate, regularizer = None, c = 1):
 
     if manager == "regression":
         from Data import DataManager
@@ -15,11 +15,10 @@ def eval(manager, source, hidden_layer_sizes, learning_rate, regularizer = None,
 
     # Reset TF graph (avoids issues with repeat experiments)
     tf.reset_default_graph()
-    
+
     # Parameters
     batch_size = 32
     reg_batch_size = 2
-    training_epochs = 5000
 
     # Get Data
     if regularizer != None:
@@ -93,23 +92,29 @@ def eval(manager, source, hidden_layer_sizes, learning_rate, regularizer = None,
 
     saver = tf.train.Saver(max_to_keep=1) #We are going to keep the model with the best loss
     best_loss = np.inf
+    best_epoch = 0
 
-    config = tf.ConfigProto()
-    config.gpu_options.allow_growth = True
-    with tf.Session(config=config) as sess:
-        train_writer = tf.summary.FileWriter(name + "/train", sess.graph)
-        val_writer = tf.summary.FileWriter(name + "/val")
+    with tf.Session() as sess:
+        train_writer = tf.summary.FileWriter("train", sess.graph)
+        val_writer = tf.summary.FileWriter("val")
         
         sess.run(init)
         
-        print("")
-        print("Training NN")
-        for epoch in range(training_epochs):
+        #print("Training NN")
+        epoch = 0
+        while True:
+        
+            # Early stopping condition
+            if epoch - best_epoch > 500:
+                break
+            
+            # Run a training epoch
             total_batch = int(n / batch_size)
             for i in range(total_batch):
                 dict = data.train_feed()
                 sess.run(train_op, feed_dict=dict)
             
+            # Run model metrics
             if epoch % 20 == 0:
                 dict = data.eval_feed()
                 summary = sess.run(summary_op, feed_dict = dict)
@@ -121,15 +126,18 @@ def eval(manager, source, hidden_layer_sizes, learning_rate, regularizer = None,
 
                 #Save best model
                 if val_loss < best_loss:
-                    print(val_loss)
+                    #print(epoch, " ", val_loss)
                     best_loss = val_loss
-                    saver.save(sess, name + "/model.cpkt")
+                    best_epoch = epoch
+                    saver.save(sess, "./model.cpkt")
+    
+            epoch += 1
 
         train_writer.close()
         val_writer.close()
 
         # Evaluate the chosen model
-        saver.restore(sess, name + "/model.cpkt")
+        saver.restore(sess, "./model.cpkt")
 
         if manager == "regression":
             test_acc, test_pred = sess.run([model_loss, pred], feed_dict = {X: data.X_test, Y: data.y_test})
@@ -137,10 +145,10 @@ def eval(manager, source, hidden_layer_sizes, learning_rate, regularizer = None,
             test_acc, test_pred = sess.run([acc_op, pred], feed_dict={X: data.X_test, Y: data.y_test})
 
         out = {}
-        print("Test Acc: ", test_acc)
+        #print("Test Acc: ", test_acc)
         out["test_acc"] = np.float64(test_acc)
 
-        print("Fitting SLIM")
+        #print("Fitting SLIM")
         train_pred = sess.run(pred, feed_dict = {X: data.X_train})
         val_pred = sess.run(pred, feed_dict = {X: data.X_val})
 
@@ -148,7 +156,7 @@ def eval(manager, source, hidden_layer_sizes, learning_rate, regularizer = None,
         for i in range(n_out):
             exp_slim[i] = SLIM(data.X_train, train_pred[:, i], data.X_val, val_pred[:, i])
 
-        print("Computing Metrics")
+        #print("Computing Metrics")
         num_perturbations = 5
 
         # Define the 'local neighborhood': used for evaluation but is coded equivalently for training
@@ -186,9 +194,9 @@ def eval(manager, source, hidden_layer_sizes, learning_rate, regularizer = None,
         causal_metric = causal_metric
         standard_metric = stability_metric
 
-        print("Standard Metric: ", standard_metric)
-        print("Causal Metric: ", causal_metric)
-        print("Stability Metric: ", stability_metric)
+        #print("Standard Metric: ", standard_metric)
+        #print("Causal Metric: ", causal_metric)
+        #print("Stability Metric: ", stability_metric)
 
         out["standard_metric"] = standard_metric.tolist()
         out["causal_metric"] = causal_metric.tolist()
