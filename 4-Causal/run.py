@@ -30,7 +30,7 @@ def run(args):
     dataset = args[0]
     trial = args[1]
 
-    out = eval(DATASET_PATHS[dataset], dataset, regularizer = None, name = "TB/" + dataset + str(trial))
+    out = eval(DATASET_PATHS[dataset], dataset, regularizer = "Causal", name = "TB/" + dataset + str(trial))
 
     file = open("Trials/" + dataset + "_" + str(trial) + ".json", "w")
     json.dump(out, file)

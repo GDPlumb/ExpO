@@ -86,13 +86,13 @@ class DataManager():
         
         # Convert to np arrays
         X_train = df_train1[df_train1.columns[:-1]].values
-        y_train = df_train1[df_train1.columns[-1]].values
+        y_train = np.expand_dims(df_train1[df_train1.columns[-1]].values, 1)
         
         X_valid = df_valid1[df_valid1.columns[:-1]].values
-        y_valid = df_valid1[df_valid1.columns[-1]].values
+        y_valid = np.expand_dims(df_valid1[df_valid1.columns[-1]].values, 1)
         
         X_test = df_test1[df_test1.columns[:-1]].values
-        y_test = df_test1[df_test1.columns[-1]].values
+        y_test = np.expand_dims(df_test1[df_test1.columns[-1]].values, 1)
         
         return X_train, y_train, X_valid, y_valid, X_test, y_test, np.array(train_mean), np.array(train_stddev)
 

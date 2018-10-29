@@ -2,28 +2,33 @@
 import numpy as np
 import tensorflow as tf
 
-from Data import DataManager
 from Models import MLP
 from Regularizers import Regularizer
 from SLIM import SLIM
 
-def eval(source, regularizer = None, name = "tb"):
+def eval(source, manager, regularizer=None, name="tb"):
 
-    # Reset TF graph (avoids issues with repeat exeriments)
+    if manager == "regression":
+        from Data import DataManager
+    elif manager == "hospital_readmission":
+        from MedicalData import HospitalReadmissionDataManager as DataManager
+
+    # Reset TF graph (avoids issues with repeat experiments)
     tf.reset_default_graph()
     
     # Dataset Parameters
     batch_size = 20
-    reg_batch_size = 2
+    reg_batch_size = 1 #2
     
     if regularizer != None:
-        data = DataManager(source, train_batch_size = batch_size, reg_batch_size = reg_batch_size)
+        data = DataManager(source, train_batch_size=batch_size, reg_batch_size=reg_batch_size)
     else:
-        data = DataManager(source, train_batch_size = batch_size)
+        data = DataManager(source, train_batch_size=batch_size)
 
     n = data.X_train.shape[0]
     n_input = data.X_train.shape[1]
-    
+    n_out = data.y_train.shape[1]
+
     # Regularizer Parameters
     if regularizer != None:
         # Weight of the regularization term in the loss function
@@ -32,7 +37,7 @@ def eval(source, regularizer = None, name = "tb"):
         num_samples = np.max((20, np.int(1.2 * n_input)))
 
     # Network Parameters
-    shape = [n_input, 100, 100, 1]
+    shape = [n_input, 100, 100, n_out]
 
     # Training Parameters
     learning_rate = 0.01
@@ -40,9 +45,9 @@ def eval(source, regularizer = None, name = "tb"):
 
     # Graph inputs - these names are tied into the DataManager class
     X = tf.placeholder("float", [None, n_input], name = "X_in")
-    Y = tf.placeholder("float", [None], name = "Y_in")
+    Y = tf.placeholder("float", [None, n_out], name = "Y_in")
     if regularizer != None:
-        X_reg = tf.placeholder("float", [None, n_input], name = "X_reg")
+        X_reg = tf.placeholder("float", [None, n_input], name="X_reg")
 
     # Link the graph inputs into the DataManager so its train_feed() and eval_feed() functions work
     if regularizer != None:
@@ -61,13 +66,19 @@ def eval(source, regularizer = None, name = "tb"):
         reg = regularizer.causal(X_reg)
 
     # Define the loss and optimization process
-    accuracy_loss = tf.losses.mean_squared_error(labels = Y, predictions = pred)
-    tf.summary.scalar("MSE", accuracy_loss)
-    
+    if manager == "regression":
+        model_loss = tf.losses.mean_squared_error(labels = Y, predictions = pred)
+        tf.summary.scalar("MSE", model_loss)
+    elif manager == "hospital_readmission":
+        model_loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels = Y, logits = pred))
+        _, acc_op = tf.metrics.accuracy(labels = tf.argmax(Y, 1), predictions = tf.argmax(pred, 1))
+        tf.summary.scalar("Cross-entropy:", model_loss)
+        tf.summary.scalar("Accuracy:", acc_op)
+
     if regularizer == None:
-        loss_op = accuracy_loss
+        loss_op = model_loss
     else:
-        loss_op = accuracy_loss + c * reg
+        loss_op = model_loss + c * reg
         tf.summary.scalar("Regularizer", reg)
     tf.summary.scalar("Loss", loss_op)
 
@@ -77,10 +88,10 @@ def eval(source, regularizer = None, name = "tb"):
     train_op = optimizer.minimize(loss_op)
 
     # Train the model
-    init = tf.global_variables_initializer()
+    init = [tf.global_variables_initializer(), tf.local_variables_initializer()]
 
     config = tf.ConfigProto()
-    config.gpu_options.allow_growth=True
+    config.gpu_options.allow_growth = True
     with tf.Session(config=config) as sess:
         train_writer = tf.summary.FileWriter(name + "/train", sess.graph)
         val_writer = tf.summary.FileWriter(name + "/val")
@@ -108,55 +119,67 @@ def eval(source, regularizer = None, name = "tb"):
         val_writer.close()
 
         # Evaluate the model
-        test_acc, test_pred = sess.run([accuracy_loss, pred], feed_dict = {X: data.X_test, Y: data.y_test})
+        if manager == "regression":
+            test_acc, test_pred = sess.run([model_loss, pred], feed_dict = {X: data.X_test, Y: data.y_test})
+        elif manager == "hospital_readmission":
+            test_acc, test_pred = sess.run([acc_op, pred], feed_dict={X: data.X_test, Y: data.y_test})
 
         out = {}
-        print("Test MSE: ", test_acc)
+        print("Test acc: ", test_acc)
         out["test_acc"] = np.float64(test_acc)
 
         print("Fitting SLIM")
-        exp_slim = SLIM(data.X_train, pred.eval({X: data.X_train}), data.X_val, pred.eval({X: data.X_val}))
+        train_pred = sess.run(pred, feed_dict = {X: data.X_train})
+        val_pred = sess.run(pred, feed_dict = {X: data.X_val})
+
+        exp_slim = [None] * n_out
+        for i in range(n_out):
+            exp_slim[i] = SLIM(data.X_train, train_pred[:, i], data.X_val, val_pred[:, i])
 
         print("Computing Metrics")
         num_perturbations = 5
 
         # Define the 'local neighborhood': used for evaluation but is coded equivalently for training
         def generate_neighbor(x):
-            return x + 0.1 * np.random.normal(loc = 0.0, scale = 1.0, size = n_input)
-            
-        n = data.X_test.shape[0]
-        standard_metric = 0.0
-        causal_metric = 0.0
-        stability_metric = 0.0
-        for i in range(n):
-            x = data.X_test[i, :]
+            return x + 0.1 * np.random.normal(loc=0.0, scale=1.0, size=n_input)
 
-            e_slim = exp_slim.explain(x)
-            coefs_slim = e_slim["coefs"]
-            
-            standard_metric += (e_slim["pred"][0] - test_pred[i])**2
-        
-            for j in range(num_perturbations):
-                x_pert = generate_neighbor(x)
-                
-                model_pred = pred.eval({X: x_pert.reshape((1, n_input))})
-                slim_pred = np.dot(np.insert(x_pert, 0, 1), coefs_slim)
-                causal_metric += (slim_pred - model_pred)**2
-        
-                e_slim_pert = exp_slim.explain(x_pert)
-                stability_metric += np.sum((e_slim_pert["coefs"] - coefs_slim)**2)
-    
+        n = data.X_test.shape[0]
+        standard_metric = np.zeros(n_out)
+        causal_metric = np.zeros(n_out)
+        stability_metric = np.zeros(n_out)
+        for i in range(n_out):
+            for j in range(n):
+                x = data.X_test[j, :]
+
+                e_slim = exp_slim[i].explain(x)
+                coefs_slim = e_slim["coefs"]
+
+                standard_metric[i] += (e_slim["pred"][0] - test_pred[j,i])**2
+
+                for j in range(num_perturbations):
+                    x_pert = generate_neighbor(x)
+
+                    model_pred = pred.eval({X: x_pert.reshape((1, n_input))})[0,i]
+                    slim_pred = np.dot(np.insert(x_pert, 0, 1), coefs_slim)
+                    causal_metric[i] += (slim_pred - model_pred)**2
+
+                    e_slim_pert = exp_slim[i].explain(x_pert)
+                    stability_metric[i] += np.sum((e_slim_pert["coefs"] - coefs_slim)**2)
+
         standard_metric /= n
         causal_metric /= num_perturbations * n
         stability_metric /= num_perturbations * n
- 
+
+        standard_metric = np.sqrt(standard_metric)
+        causal_metric = np.sqrt(causal_metric)
+        standard_metric = np.sqrt(stability_metric)
+
         print("Standard Metric: ", standard_metric)
         print("Causal Metric: ", causal_metric)
         print("Stability Metric: ", stability_metric)
 
-        out["standard_metric"] = np.float64(standard_metric)
-        out["causal_metric"] = np.float64(causal_metric)
-        out["stability_metric"] = np.float64(stability_metric)
+        out["standard_metric"] = standard_metric.tolist()
+        out["causal_metric"] = causal_metric.tolist()
+        out["stability_metric"] = stability_metric.tolist()
 
         return out
-

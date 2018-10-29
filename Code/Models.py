@@ -25,4 +25,5 @@ class MLP():
         with tf.variable_scope("output"):
             weights = tf.get_variable("weights", [shape[n - 2], shape[n - 1]], initializer = self.weight_init)
             biases = tf.get_variable("biases", shape[n - 1], initializer = self.bias_init)
-            return tf.squeeze(tf.matmul(x, weights) + biases)
+            #return tf.squeeze(tf.matmul(x, weights) + biases)
+            return tf.matmul(x, weights) + biases
