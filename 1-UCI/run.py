@@ -1,14 +1,22 @@
 
-# Flag to switch between running the hyperparameter search and the final chosen architectures
-final = True
-# Flag to swtich between displaying results and running the experiments
-execute = True
+# Flags to control what parts of the experiment run
+run_search = False
+process_search = False
+run_final = True
+
+# Initial Search Space
+datasets = ["autompgs", "communities", "day", "happiness", "housing", "music", "winequality-red"]
+trials = list(range(3))
+depths = [2,3,4]
+sizes = [50, 100, 150, 200] # This should probably be [150, 200, 250, 300] because almost all datasets chose a size of 200
+rates = [0.0001, 0.001]
 
 project_dir = "/home/gregory/Desktop/Regularization"
 
 import itertools
 import json
 from multiprocessing import Pool
+import numpy as np
 import operator
 import os
 import sys
@@ -18,8 +26,18 @@ from eval import eval
 # The networks are small enough that training is faster on CPU
 os.environ["CUDA_VISIBLE_DEVICES"]="-1"
 
-def args2name(dataset, shape, rate, trial):
-    return "TF/" + dataset + "/" + str(shape) + "/" + str(rate) + "/trial" + str(trial)
+def args2name(dataset, depth, size, rate, trial):
+    return "TF/" + dataset + "/" + str([size] * depth) + "/" + str(rate) + "/trial" + str(trial)
+
+def name2args(name):
+    chunks = name.split("/")
+    dataset = chunks[1]
+    shape = chunks[2]
+    shape = json.loads(shape)
+    depth = len(shape)
+    size = shape[0]
+    rate = np.float(chunks[3])
+    return dataset, depth, size, rate
 
 def run(args):
     dataset = args[0]
@@ -28,21 +46,16 @@ def run(args):
     size = args[3]
     rate = args[4]
     
-    manager = "regression"
-    source =  project_dir + "/Datasets/" + dataset  + ".csv"
-    
-    shape = [size] * depth
-    
-    name = args2name(dataset, shape, rate, trial)
-    
+    name = args2name(dataset, depth, size, rate, trial)
+
     cwd = os.getcwd()
     
     os.makedirs(name)
     os.chdir(name)
     
-    with open("config.json", "w") as f:
-        json.dump(args, f)
-
+    manager = "regression"
+    source =  project_dir + "/Datasets/" + dataset  + ".csv"
+    shape = [size] * depth
     out = eval(manager, source, shape, rate)
 
     with open("out.json", "w") as f:
@@ -50,81 +63,62 @@ def run(args):
 
     os.chdir(cwd)
 
-datasets = ["autompgs", "communities", "day", "happiness", "housing", "music", "winequality-red"]
+if run_search:
 
-if not final:
-    trials = list(range(3))
-    depths = [2,3,4]
-    # This should probably be [150, 200, 250, 300] because almost all datasets chose a size of 200
-    sizes = [50, 100, 150, 200]
-    rates = [0.0001, 0.001]
     list = itertools.product(datasets, trials, depths, sizes, rates)
 
     p = Pool(5)
     if execute:
         p.map(run, list)
+    
+if process_search:
 
+    config = {}
     for dataset in datasets:
 
-        list_trials = {}
         list_means = {}
 
         for depth in depths:
             for size in sizes:
-                shape = [size] * depth
                 for rate in rates:
 
                     mean = 0.0
 
                     for trial in trials:
-                        name = args2name(dataset, shape, rate, trial)
+                        name = args2name(dataset, depth, size, rate, trial)
 
                         with open(name + "/out.json") as f:
                             results = json.load(f)
 
-                        acc = results["test_acc"]
-                        list_trials[name] = acc
-                        mean += acc
+                        mean += results["test_acc"]
 
                     mean /= len(trials)
-                    name = args2name(dataset, shape, rate, "_avg")
+                    name = args2name(dataset, depth, size, rate, "_avg")
                     list_means[name] = mean
 
-        print("")
-        print(dataset)
-        print("")
-        print("10 Best Individual Trials")
-        sorted_trials = sorted(list_trials.items(), key = operator.itemgetter(1))
-        for i in range(10):
-            print(sorted_trials[i])
-        print("")
-        print("5 Best Average Configurations")
+
         sorted_means = sorted(list_means.items(), key = operator.itemgetter(1))
-        for i in range(5):
-            print(sorted_means[i])
-        print("")
+        
+        # Get the configuration with the best average performance
+        args = name2args(sorted_means[0][0])
+
+        config[args[0]] = [args[1], args[2], args[3]]
+
+    with open("config.json", "w") as f:
+        json.dump(config, f)
+
+    os.rename("TF", "TF-initial")
 
 else:
-    config = {}
-    config["autompgs"] = [2, 200, 0.0001]
-    config["communities"] = [3, 200, 0.001]
-    config["day"] = [3, 200, 0.001] #Linear dataset, the difference between all of these was small
-    config["happiness"] = [2, 200, 0.001] #Same as above
-    config["housing"] = [3, 150, 0.001]
-    config["music"] = [4, 200, 0.001]
-    config["winequality-red"] = [2, 200, 0.0001]
+    with open("config.json") as f:
+        config = json.load(f)
 
     list = []
     for dataset in datasets:
+        c = config[dataset]
         for trial in range(10):
-            c = config[dataset]
             args = [dataset, trial, c[0], c[1], c[2]]
             list.append(args)
 
     p = Pool(5)
-    if execute:
-        p.map(run, list)
-
-
-
-
+    p.map(run, list)
