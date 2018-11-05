@@ -56,8 +56,11 @@ class DataManager():
             batch_x_reg = X_eval[indices_reg]
             return {self.X: batch_x, self.Y: batch_y, self.X_reg: batch_x_reg}
 
+    def load_data(self):
+        return pd.read_csv(self.source, header = None).dropna()
+
     def load_normalize_data(self, thresh = .0000000001):
-        df_train = pd.read_csv(self.source, header = None).dropna()
+        df_train = self.load_data()
         
         # Split train, test, valid - Change up train valid test every iteration
         df_train, df_test = train_test_split(df_train, test_size = 0.5)
@@ -83,13 +86,13 @@ class DataManager():
         
         # Convert to np arrays
         X_train = df_train1[df_train1.columns[:-1]].values
-        y_train = df_train1[df_train1.columns[-1]].values
+        y_train = np.expand_dims(df_train1[df_train1.columns[-1]].values, 1)
         
         X_valid = df_valid1[df_valid1.columns[:-1]].values
-        y_valid = df_valid1[df_valid1.columns[-1]].values
+        y_valid = np.expand_dims(df_valid1[df_valid1.columns[-1]].values, 1)
         
         X_test = df_test1[df_test1.columns[:-1]].values
-        y_test = df_test1[df_test1.columns[-1]].values
+        y_test = np.expand_dims(df_test1[df_test1.columns[-1]].values, 1)
         
         return X_train, y_train, X_valid, y_valid, X_test, y_test, np.array(train_mean), np.array(train_stddev)
 

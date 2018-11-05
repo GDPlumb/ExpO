@@ -20,9 +20,12 @@ class Regularizer():
         with tf.name_scope("ComputeProjectionMatrix") as scope:
             return tf.stop_gradient(tf.matmul(tf.matrix_inverse(tf.matmul(tf.transpose(x_local), x_local)), tf.transpose(x_local)))
 
+    # P is [n_input, num_samples], y is [num_samples, n_classes]
+    # Output is [num_samples, n_classes]
     def coefficients(self, P, y):
         with tf.name_scope("ComputeCoefficients") as scope:
-            return tf.einsum('ij,j->i', P, y)
+            #return tf.einsum('ij,j->i', P, y)
+            return tf.einsum('ij,jk->ik', P, y)
 
     # It may be possible to make this computation more efficient by using broadcasting rather than map_fn
     def causal(self, x):
@@ -34,7 +37,9 @@ class Regularizer():
                     y = self.model(x_local[:, :-1])
                 B = self.coefficients(P, y)
                 with tf.name_scope("LinearPredictLocal") as scope:
-                    y_lin = tf.einsum('ij,j->i', x_local, B)
+                    #y_lin = tf.einsum('ij,j->i', x_local, B)
+                    y_lin = tf.einsum('ij,jk->ik', x_local, B)
                 with tf.name_scope("LocalLinearMSE") as scope:
                     return tf.losses.mean_squared_error(labels = y, predictions = y_lin)
             return tf.reduce_mean(tf.map_fn(compute_mse, x))
+

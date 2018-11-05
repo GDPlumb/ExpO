@@ -1,7 +1,6 @@
-rm -rf TB/*
-rm Trials/*
+rm config.json
 rm results.csv
-rm table.csv
+rm -rf TF
+rm -rf TF-initial
 
 python run.py
-Rscript process.R
