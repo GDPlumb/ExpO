@@ -18,7 +18,7 @@ def eval(manager, source, hidden_layer_sizes, learning_rate, regularizer = None,
 
     # Parameters
     batch_size = 32
-    reg_batch_size = 2
+    reg_batch_size = 4
 
     # Get Data
     if regularizer != None:
@@ -105,7 +105,7 @@ def eval(manager, source, hidden_layer_sizes, learning_rate, regularizer = None,
         while True:
         
             # Early stopping condition
-            if epoch - best_epoch > 500:
+            if epoch - best_epoch > 1000:
                 break
             
             # Run a training epoch

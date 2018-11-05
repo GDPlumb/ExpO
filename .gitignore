@@ -1,5 +1,5 @@
 *.AppleDouble
 *__pycache__
 
-*.json
 */TF/*
+*/TF-initial/*

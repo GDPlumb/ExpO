@@ -1,5 +1,6 @@
-rm -rf TF/*
+rm config.json
 rm results.csv
-rm table.csv
+rm -rf TF
+rm -rf TF-initial
 
 python run.py

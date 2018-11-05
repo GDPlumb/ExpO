@@ -1,16 +1,4 @@
 
-# Flags to control what parts of the experiment run
-run_search = False
-process_search = False
-run_final = True
-
-# Initial Search Space
-datasets = ["autompgs", "communities", "day", "happiness", "housing", "music", "winequality-red"]
-trials = list(range(3))
-depths = [2,3,4]
-sizes = [50, 100, 150, 200] # This should probably be [150, 200, 250, 300] because almost all datasets chose a size of 200
-rates = [0.0001, 0.001]
-
 project_dir = "/home/gregory/Desktop/Regularization"
 
 import itertools
@@ -19,6 +7,7 @@ from multiprocessing import Pool
 import numpy as np
 import operator
 import os
+import pandas as pd
 import sys
 sys.path.insert(0, project_dir + "/Code/")
 from eval import eval
@@ -26,7 +15,7 @@ from eval import eval
 # The networks are small enough that training is faster on CPU
 os.environ["CUDA_VISIBLE_DEVICES"]="-1"
 
-def args2name(dataset, depth, size, rate, trial):
+def args2name(dataset, trial, depth, size, rate):
     return "TF/" + dataset + "/" + str([size] * depth) + "/" + str(rate) + "/trial" + str(trial)
 
 def name2args(name):
@@ -46,7 +35,7 @@ def run(args):
     size = args[3]
     rate = args[4]
     
-    name = args2name(dataset, depth, size, rate, trial)
+    name = args2name(dataset, trial, depth, size, rate)
 
     cwd = os.getcwd()
     
@@ -63,13 +52,28 @@ def run(args):
 
     os.chdir(cwd)
 
+# Flags to control what parts of the experiment run
+run_search = True
+process_search = True
+run_final = True
+process_final = True
+
+n_search = 5
+n_final = 20
+
+# Initial Search Space
+datasets = ["autompgs", "communities", "day", "happiness", "housing", "music", "winequality-red"]
+trials = list(range(n_search))
+depths = [1,2,3,4,5]
+sizes = [100, 150, 200, 250]
+rates = [0.0001, 0.001]
+
 if run_search:
 
-    list = itertools.product(datasets, trials, depths, sizes, rates)
+    configs = itertools.product(datasets, trials, depths, sizes, rates)
 
     p = Pool(5)
-    if execute:
-        p.map(run, list)
+    p.map(run, configs)
     
 if process_search:
 
@@ -85,17 +89,16 @@ if process_search:
                     mean = 0.0
 
                     for trial in trials:
-                        name = args2name(dataset, depth, size, rate, trial)
+                        name = args2name(dataset, trial, depth, size, rate)
 
                         with open(name + "/out.json") as f:
                             results = json.load(f)
 
                         mean += results["test_acc"]
 
-                    mean /= len(trials)
-                    name = args2name(dataset, depth, size, rate, "_avg")
+                    mean /= n_search
+                    name = args2name(dataset, "_avg", depth, size, rate)
                     list_means[name] = mean
-
 
         sorted_means = sorted(list_means.items(), key = operator.itemgetter(1))
         
@@ -109,16 +112,36 @@ if process_search:
 
     os.rename("TF", "TF-initial")
 
-else:
+if run_final or aggreggate:
     with open("config.json") as f:
         config = json.load(f)
-
-    list = []
+    configs = []
     for dataset in datasets:
         c = config[dataset]
-        for trial in range(10):
+        for trial in range(n_final):
             args = [dataset, trial, c[0], c[1], c[2]]
-            list.append(args)
+            configs.append(args)
 
+if run_final:
     p = Pool(5)
-    p.map(run, list)
+    p.map(run, configs)
+
+if process_final:
+
+    args = configs[0]
+    with open(args2name(args[0], args[1], args[2], args[3], args[4]) + "/out.json") as f:
+        data = json.load(f)
+
+    columns = list(data.keys())
+    df = pd.DataFrame(0, index = datasets, columns = columns)
+    df = df.astype("object")
+
+    for args in configs:
+
+        with open(args2name(args[0], args[1], args[2], args[3], args[4]) + "/out.json") as f:
+            data = json.load(f)
+        
+        for name in columns:
+            df.ix[args[0], name] += np.asarray(data[name]) / n_final
+
+    df.to_csv("results.csv")
