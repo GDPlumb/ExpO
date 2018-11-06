@@ -12,6 +12,10 @@ def eval(manager, source, hidden_layer_sizes, learning_rate, regularizer = None,
         from Data import DataManager
     elif manager == "hospital_readmission":
         from MedicalData import HospitalReadmissionDataManager as DataManager
+    elif manager == "support2":
+        from MedicalData import Support2DataManager as DataManager
+    else:
+        raise ValueError("Unknown dataset: %s" % manager)
 
     # Reset TF graph (avoids issues with repeat experiments)
     tf.reset_default_graph()
@@ -69,7 +73,7 @@ def eval(manager, source, hidden_layer_sizes, learning_rate, regularizer = None,
     if manager == "regression":
         model_loss = tf.losses.mean_squared_error(labels = Y, predictions = pred)
         tf.summary.scalar("MSE", model_loss)
-    elif manager == "hospital_readmission":
+    elif manager in {"hospital_readmission", "support2"}:
         model_loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels = Y, logits = pred))
         _, acc_op = tf.metrics.accuracy(labels = tf.argmax(Y, 1), predictions = tf.argmax(pred, 1))
         tf.summary.scalar("Cross-entropy:", model_loss)
