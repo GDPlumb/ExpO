@@ -66,6 +66,7 @@ class ClassificationDataManager(DataManager):
 class HospitalReadmissionDataManager(ClassificationDataManager):
     """Data manager for the hospital readmission data."""
 
+    # Data parameters.
     # _ECLUDE_COLUMNS = []
     _EXCLUDE_COLUMNS = ["diag_1", "diag_2", "diag_3"]
 
@@ -86,9 +87,52 @@ class HospitalReadmissionDataManager(ClassificationDataManager):
 
 
 class Support2DataManager(ClassificationDataManager):
-    """Data manager for the SUPPORT2 dataset.
-    """
+    """Data manager for the SUPPORT2 dataset."""
 
-    def load_data(self):
-        # TODO (alshedivat): implement me.
-        raise NotImplementedError
+    # Data parameters.
+    _TRAIN_SIZE, _VALID_SIZE, _TEST_SIZE = 7105, 1000, 1000
+    _EXCLUDE_FEATURES = [
+        "aps", "sps", "surv2m", "surv6m", "prg2m", "prg6m", "dnr", "dnrday",
+        "hospdead", "dzclass", "edu", "scoma", "totmcst", "charges", "totcst",
+    ]
+    _TARGETS = ["death", "d.time"]
+    _AVG_VALUES = {
+        "alb": 3.5,
+        "bili": 1.01,
+        "bun": 6.51,
+        "crea": 1.01,
+        "pafi": 333.3,
+        "wblc": 9.,
+        "urine": 2502.,
+    }
+
+    def load_data(self, fill_na="avg", na_value=-1.0):
+        df = pd.read_csv(self.source)
+        columns = sorted(list(set(df.columns) - set(self._EXCLUDE_FEATURES)))
+        df = df[columns]
+
+        # Split into features and targets.
+        targets = df[self._TARGETS]
+        features = df[list(set(df.columns) - set(self._TARGETS))]
+
+        # Convert categorical columns into one-hot format
+        cat_columns = features.columns[features.dtypes == "object"]
+        features = pd.get_dummies(features, dummy_na=False, columns=cat_columns)
+
+        # Scale and impute real-valued features.
+        features[["num.co", "slos", "hday"]] = \
+            features[["num.co", "slos", "hday"]].astype(np.float)
+        float_cols = features.columns[features.dtypes == np.float]
+        features[float_cols] = \
+            (features[float_cols] - features[float_cols].min()) / \
+            (features[float_cols].max() - features[float_cols].min())
+        if fill_na == "avg":
+            for key, val in self._AVG_VALUES.items():
+                features[[key]] = features[[key]].fillna(val)
+        features.fillna(na_value, inplace=True)
+
+        # Construct final data frame.
+        df = features
+        df["death"] = pd.Categorical(targets["death"]).codes
+
+        return df
