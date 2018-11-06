@@ -3,3 +3,12 @@
 
 */TF/*
 */TF-initial/*
+
+# IntelliJ IDEA
+.idea
+
+# Pyenv
+.python-version
+
+# IPython notebooks
+.ipynb_checkpoints
