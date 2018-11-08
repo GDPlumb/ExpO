@@ -57,8 +57,8 @@ def run(args):
 # Flags to control what parts of the experiment run
 run_search = True
 process_search = True
-run_final = False
-process_final = False
+run_final = True
+process_final = True
 
 n_search = 3
 n_final = 10
@@ -66,8 +66,7 @@ n_final = 10
 # Initial Search Space
 datasets = ["autompgs", "communities", "day", "happiness", "housing", "music", "winequality-red"]
 trials = list(range(n_search))
-#regs = [1.0, 10.0, 100.0, 1000.0]
-regs = [1000.0, 5000.0, 10000.0, 100000.0]
+regs = [2.5e3, 5e3, 7.5e3, 1e4, 2.5e4, 5e4, 7.5e4]
 
 if run_search or process_search:
     with open("../1-UCI/config.json") as f:
