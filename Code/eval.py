@@ -4,7 +4,9 @@ import tensorflow as tf
 
 from Models import MLP
 from Regularizers import Regularizer
-from SLIM import SLIM
+from SLIM import SLIM as MAPLE
+
+from lime import lime_tabular
 
 def eval(manager, source, hidden_layer_sizes, learning_rate, regularizer = None, c = 1):
 
@@ -140,70 +142,133 @@ def eval(manager, source, hidden_layer_sizes, learning_rate, regularizer = None,
         train_writer.close()
         val_writer.close()
 
+        ###
         # Evaluate the chosen model
+        ###
+        
         saver.restore(sess, "./model.cpkt")
+        out = {}
 
+        # Evaluate Accuracy
         if manager == "regression":
             test_acc, test_pred = sess.run([model_loss, pred], feed_dict = {X: data.X_test, Y: data.y_test})
         elif manager == "hospital_readmission":
             test_acc, test_pred = sess.run([acc_op, pred], feed_dict={X: data.X_test, Y: data.y_test})
 
-        out = {}
-        #print("Test Acc: ", test_acc)
         out["test_acc"] = np.float64(test_acc)
 
-        #print("Fitting SLIM")
+        # Training and Validation Predictions
         train_pred = sess.run(pred, feed_dict = {X: data.X_train})
         val_pred = sess.run(pred, feed_dict = {X: data.X_val})
 
-        exp_slim = [None] * n_out
+        # Configure MAPLE
+        exp_maple = [None] * n_out
         for i in range(n_out):
-            exp_slim[i] = SLIM(data.X_train, train_pred[:, i], data.X_val, val_pred[:, i])
+            exp_maple[i] = MAPLE(data.X_train, train_pred[:, i], data.X_val, val_pred[:, i])
 
-        #print("Computing Metrics")
+        # Configure LIME
+        if manager == "regression":
+            exp_lime = lime_tabular.LimeTabularExplainer(data.X_train, discretize_continuous=False, mode="regression")
+        elif manager == "hospital_readmission":
+            raise NotImplementedError
+
+        class Wrapper():
+            def __init__(self):
+                self.index = 0
+
+            def set_index(self, i):
+                self.index = i
+
+            def predict(self, x):
+                return np.squeeze(sess.run(pred, feed_dict = {X: x})[:, self.index])
+        wrapper = Wrapper()
+            
+        def unpack_coefs(explainer, x, predict_fn, num_features, x_train, num_samples = 5000):
+            d = x_train.shape[1]
+            coefs = np.zeros((d))
+            
+            u = np.mean(x_train, axis = 0)
+            sd = np.sqrt(np.var(x_train, axis = 0))
+            
+            exp = explainer.explain_instance(x, predict_fn, num_features=num_features, num_samples = num_samples)
+            
+            coef_pairs = exp.local_exp[1]
+            for pair in coef_pairs:
+                coefs[pair[0]] = pair[1]
+            
+            coefs = coefs / sd
+
+            intercept = exp.intercept[1] - np.sum(coefs * u)
+
+            return np.insert(coefs, 0, intercept)
+
+        # Configure the Local Neighborhood
         num_perturbations = 5
 
-        # Define the 'local neighborhood': used for evaluation but is coded equivalently for training
         def generate_neighbor(x):
             return x + 0.1 * np.random.normal(loc=0.0, scale=1.0, size=n_input)
 
+        # Explanation metrics
         n = data.X_test.shape[0]
-        standard_metric = np.zeros(n_out)
-        causal_metric = np.zeros(n_out)
-        stability_metric = np.zeros(n_out)
+        d = data.X_test.shape[1]
+        
+        maple_standard_metric = np.zeros(n_out)
+        maple_causal_metric = np.zeros(n_out)
+        maple_stability_metric = np.zeros(n_out)
+        
+        lime_standard_metric = np.zeros(n_out)
+        lime_causal_metric = np.zeros(n_out)
+        lime_stability_metric = np.zeros(n_out)
+        
         for i in range(n_out):
+            wrapper.set_index(i)
             for j in range(n):
                 x = data.X_test[j, :]
 
-                e_slim = exp_slim[i].explain(x)
-                coefs_slim = e_slim["coefs"]
+                # Get MAPLE's Explanation
+                e_maple = exp_maple[i].explain(x)
+                coefs_maple = e_maple["coefs"]
+                
+                # Get LIME's Explanation
+                coefs_lime = unpack_coefs(exp_lime, x, wrapper.predict, d, data.X_train)
 
-                standard_metric[i] += (e_slim["pred"][0] - test_pred[j,i])**2
+                # Standard Metric
+                maple_standard_metric[i] += (e_maple["pred"][0] - test_pred[j,i])**2
+                lime_standard_metric[i] += (np.dot(np.insert(x, 0, 1), coefs_lime) - test_pred[j,i])**2
 
                 for j in range(num_perturbations):
                     x_pert = generate_neighbor(x)
 
+                    # Causal Metric
                     model_pred = pred.eval({X: x_pert.reshape((1, n_input))})[0,i]
-                    slim_pred = np.dot(np.insert(x_pert, 0, 1), coefs_slim)
-                    causal_metric[i] += (slim_pred - model_pred)**2
+                    
+                    maple_pred = np.dot(np.insert(x_pert, 0, 1), coefs_maple)
+                    maple_causal_metric[i] += (maple_pred - model_pred)**2
 
-                    e_slim_pert = exp_slim[i].explain(x_pert)
-                    stability_metric[i] += np.sum((e_slim_pert["coefs"] - coefs_slim)**2)
+                    lime_pred = np.dot(np.insert(x_pert, 0, 1), coefs_lime)
+                    lime_causal_metric[i] += (lime_pred - model_pred)**2
 
-        standard_metric /= n
-        causal_metric /= num_perturbations * n
-        stability_metric /= num_perturbations * n
+                    # Stability Metric
+                    e_maple_pert = exp_maple[i].explain(x_pert)
+                    maple_stability_metric[i] += np.sum((e_maple_pert["coefs"] - coefs_maple)**2)
 
-        standard_metric = standard_metric
-        causal_metric = causal_metric
-        standard_metric = stability_metric
+                    coefs_lime_pert = unpack_coefs(exp_lime, x, wrapper.predict, d, data.X_train)
+                    lime_stability_metric[i] += np.sum((coefs_lime_pert - coefs_lime)**2)
 
-        #print("Standard Metric: ", standard_metric)
-        #print("Causal Metric: ", causal_metric)
-        #print("Stability Metric: ", stability_metric)
+        maple_standard_metric /= n
+        maple_causal_metric /= num_perturbations * n
+        maple_stability_metric /= num_perturbations * n
 
-        out["standard_metric"] = standard_metric.tolist()
-        out["causal_metric"] = causal_metric.tolist()
-        out["stability_metric"] = stability_metric.tolist()
+        lime_standard_metric /= n
+        lime_causal_metric /= num_perturbations * n
+        lime_stability_metric /= num_perturbations * n
+
+        out["maple_standard_metric"] = maple_standard_metric.tolist()
+        out["maple_causal_metric"] = maple_causal_metric.tolist()
+        out["maple_stability_metric"] = maple_stability_metric.tolist()
+
+        out["lime_standard_metric"] = lime_standard_metric.tolist()
+        out["lime_causal_metric"] = lime_causal_metric.tolist()
+        out["lime_stability_metric"] = lime_stability_metric.tolist()
 
         return out

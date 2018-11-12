@@ -1,0 +1,2 @@
+,test_acc,maple_standard_metric,maple_causal_metric,maple_stability_metric,lime_standard_metric,lime_causal_metric,lime_stability_metric
+autompgs,0.11644860804080964,[0.00970044],[0.01111102],[0.01169005],[0.03847173],[0.03936033],[0.00017783]
