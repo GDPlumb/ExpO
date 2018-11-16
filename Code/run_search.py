@@ -13,7 +13,6 @@ def args2name(dataset, trial, depth, size, rate, reg = None):
     else:
         return "TF/" + dataset + "/" + str([size] * depth) + "/" + str(rate) + "/" + str(reg) + "/trial" + str(trial)
 
-
 def name2args(name):
     chunks = name.split("/")
     dataset = chunks[1]

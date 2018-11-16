@@ -1,5 +1,5 @@
-rm config.json
-rm results.csv
+rm *.json
+rm *.csv
 rm -rf TF
 rm -rf TF-initial
 

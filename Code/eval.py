@@ -60,7 +60,7 @@ def eval(manager, source, hidden_layer_sizes, learning_rate, regularizer = None,
         data.link_graph(X, Y, X_reg = X_reg)
     else:
         data.link_graph(X, Y)
-    
+
     # Build the model
     network = MLP(shape)
     with tf.variable_scope("model", reuse = tf.AUTO_REUSE):
@@ -103,29 +103,29 @@ def eval(manager, source, hidden_layer_sizes, learning_rate, regularizer = None,
     with tf.Session() as sess:
         train_writer = tf.summary.FileWriter("train", sess.graph)
         val_writer = tf.summary.FileWriter("val")
-        
+
         sess.run(init)
-        
+
         #print("Training NN")
         epoch = 0
         while True:
-        
+
             # Early stopping condition
             if epoch - best_epoch > 1000:
                 break
-            
+
             # Run a training epoch
             total_batch = int(n / batch_size)
             for i in range(total_batch):
                 dict = data.train_feed()
                 sess.run(train_op, feed_dict=dict)
-            
+
             # Run model metrics
             if epoch % 20 == 0:
                 dict = data.eval_feed()
                 summary = sess.run(summary_op, feed_dict = dict)
                 train_writer.add_summary(summary, epoch)
-                
+
                 dict = data.eval_feed(val = True)
                 summary, val_loss = sess.run([summary_op, loss_op], feed_dict = dict)
                 val_writer.add_summary(summary, epoch)
@@ -136,7 +136,7 @@ def eval(manager, source, hidden_layer_sizes, learning_rate, regularizer = None,
                     best_loss = val_loss
                     best_epoch = epoch
                     saver.save(sess, "./model.cpkt")
-    
+
             epoch += 1
 
         train_writer.close()
@@ -145,14 +145,14 @@ def eval(manager, source, hidden_layer_sizes, learning_rate, regularizer = None,
         ###
         # Evaluate the chosen model
         ###
-        
+
         saver.restore(sess, "./model.cpkt")
         out = {}
 
         # Evaluate Accuracy
         if manager == "regression":
             test_acc, test_pred = sess.run([model_loss, pred], feed_dict = {X: data.X_test, Y: data.y_test})
-        elif manager == "hospital_readmission":
+        elif manager == "hospital_readmission" or manager == "support2":
             test_acc, test_pred = sess.run([acc_op, pred], feed_dict={X: data.X_test, Y: data.y_test})
 
         out["test_acc"] = np.float64(test_acc)
@@ -182,20 +182,20 @@ def eval(manager, source, hidden_layer_sizes, learning_rate, regularizer = None,
             def predict(self, x):
                 return np.squeeze(sess.run(pred, feed_dict = {X: x})[:, self.index])
         wrapper = Wrapper()
-            
+
         def unpack_coefs(explainer, x, predict_fn, num_features, x_train, num_samples = 5000):
             d = x_train.shape[1]
             coefs = np.zeros((d))
-            
+
             u = np.mean(x_train, axis = 0)
             sd = np.sqrt(np.var(x_train, axis = 0))
-            
+
             exp = explainer.explain_instance(x, predict_fn, num_features=num_features, num_samples = num_samples)
-            
+
             coef_pairs = exp.local_exp[1]
             for pair in coef_pairs:
                 coefs[pair[0]] = pair[1]
-            
+
             coefs = coefs / sd
 
             intercept = exp.intercept[1] - np.sum(coefs * u)
@@ -211,15 +211,15 @@ def eval(manager, source, hidden_layer_sizes, learning_rate, regularizer = None,
         # Explanation metrics
         n = data.X_test.shape[0]
         d = data.X_test.shape[1]
-        
+
         maple_standard_metric = np.zeros(n_out)
         maple_causal_metric = np.zeros(n_out)
         maple_stability_metric = np.zeros(n_out)
-        
+
         lime_standard_metric = np.zeros(n_out)
         lime_causal_metric = np.zeros(n_out)
         lime_stability_metric = np.zeros(n_out)
-        
+
         for i in range(n_out):
             wrapper.set_index(i)
             for j in range(n):
@@ -228,7 +228,7 @@ def eval(manager, source, hidden_layer_sizes, learning_rate, regularizer = None,
                 # Get MAPLE's Explanation
                 e_maple = exp_maple[i].explain(x)
                 coefs_maple = e_maple["coefs"]
-                
+
                 # Get LIME's Explanation
                 coefs_lime = unpack_coefs(exp_lime, x, wrapper.predict, d, data.X_train)
 
@@ -241,7 +241,7 @@ def eval(manager, source, hidden_layer_sizes, learning_rate, regularizer = None,
 
                     # Causal Metric
                     model_pred = pred.eval({X: x_pert.reshape((1, n_input))})[0,i]
-                    
+
                     maple_pred = np.dot(np.insert(x_pert, 0, 1), coefs_maple)
                     maple_causal_metric[i] += (maple_pred - model_pred)**2
 
