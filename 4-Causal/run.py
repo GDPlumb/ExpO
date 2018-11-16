@@ -1,46 +1,56 @@
 
-import itertools
 import json
-import numpy as np
-import tensorflow as tf
+import os
 import sys
-sys.path.insert(0, "../Code/")
+
+sys.path.insert(0, os.path.join(os.getcwd(), "../Code/"))
 from eval import eval
-from Merge import merge
+from run_search import run_search, args2name
 
-# Fix Random Seeds
-np.random.seed(1)
-tf.set_random_seed(1)
+# The networks are small enough that training is faster on CPU
+os.environ["CUDA_VISIBLE_DEVICES"]="-1"
 
-datasets = ["hospital_readmission"]
-trials = []
-for i in range(1):
-    trials.append(i + 1)
-args = itertools.product(datasets, trials)
-
+# Location of Datasets
 DATASET_PATHS = {
-    "hospital_readmission": "../Datasets/hospital_readmission/diabetic_data.csv",
+    "hospital_readmission": os.path.join(os.getcwd(), "../Datasets/hospital_readmission/diabetic_data.csv"),
+    "support2": os.path.join(os.getcwd(), "../Datasets/support2.csv"),
 }
 
-###
-# Run Experiments
-###
+# Search Space
+datasets = ["support2"] #, "hospital_readmission"]
+depths = [1]
+sizes = [32]
+rates = [0.0001]
+regs = [1.0]
 
+# Run function
 def run(args):
     dataset = args[0]
     trial = args[1]
+    depth = args[2]
+    size = args[3]
+    rate = args[4]
+    reg = args[5]
 
-    out = eval(DATASET_PATHS[dataset], dataset, regularizer = "Causal", name = "TB/" + dataset + str(trial))
+    name = args2name(dataset, trial, depth, size, rate, reg)
 
-    file = open("Trials/" + dataset + "_" + str(trial) + ".json", "w")
-    json.dump(out, file)
-    file.close()
+    cwd = os.getcwd()
 
-for a in args:
-    run(a)
+    os.makedirs(name)
+    os.chdir(name)
 
-###
-# Merge Results
-###
+    manager = dataset
+    source =  DATASET_PATHS[dataset]
+    shape = [size] * depth
+    out = eval(manager, source, shape, rate, regularizer = "Causal", c = reg)
 
-merge(datasets, trials)
+    with open("out.json", "w") as f:
+        json.dump(out, f)
+
+    os.chdir(cwd)
+
+run_search(run_fn = run, num_processes = 5,
+            run_search = True, process_search = True, run_final = True, process_final = True,
+            n_search = 1, n_final = 1,
+            datasets = datasets, depths = depths, sizes = sizes, rates = rates,
+            regularized = True, regs = regs)

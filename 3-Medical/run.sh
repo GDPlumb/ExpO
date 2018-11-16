@@ -1,6 +1,7 @@
-rm -rf TB/*
-rm Trials/*
-rm results.csv
-rm table.csv
+rm *.json
+rm *.csv
+rm -rf TF
+rm -rf TF-initial
 
 python run.py
+
