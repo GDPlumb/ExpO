@@ -46,7 +46,7 @@ def run(args):
 
     os.chdir(cwd)
 
-run_search(run_fn = run, num_processes = 5,
+run_search(run_fn = run, num_processes = 4,
             run_search = True, process_search = True, run_final = True, process_final = True,
             n_search = 2, n_final = 10,
             datasets = datasets, depths = depths, sizes = sizes, rates = rates,
