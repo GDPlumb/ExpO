@@ -40,7 +40,7 @@ def run(args):
     manager = dataset
     source =  DATASET_PATHS[dataset]
     shape = [size] * depth
-    out = eval(manager, source, shape, rate)
+    out = eval(manager, source, shape, rate, stopping_epochs = 60)
 
     with open("out.json", "w") as f:
         json.dump(out, f)

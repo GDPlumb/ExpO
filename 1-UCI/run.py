@@ -15,7 +15,7 @@ DATASET_PATH = os.path.join(os.getcwd(), "../Datasets/")
 
 # Search Space
 datasets = ["autompgs"] #, "communities", "day", "happiness", "housing", "music", "winequality-red"]
-depths = [2,3]
+depths = [2]
 sizes = [100]
 rates = [0.0001]
 
@@ -46,6 +46,6 @@ def run(args):
 
 run_search(run_fn = run, num_processes = 5,
             run_search = True, process_search = True, run_final = True, process_final = True,
-            n_search = 2, n_final = 3,
+            n_search = 1, n_final = 1,
             datasets = datasets, depths = depths, sizes = sizes, rates = rates,
             regularized = False, regs = None)
