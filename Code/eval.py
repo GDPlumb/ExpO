@@ -96,8 +96,8 @@ def eval(manager, source,
             tf.nn.softmax_cross_entropy_with_logits(labels=Y, logits=pred))
         _, acc_op = tf.metrics.accuracy(
             labels=tf.argmax(Y, 1), predictions=tf.argmax(pred, 1))
-        tf.summary.scalar("Cross-entropy:", model_loss)
-        tf.summary.scalar("Accuracy:", acc_op)
+        tf.summary.scalar("Cross-entropy", model_loss)
+        tf.summary.scalar("Accuracy", acc_op)
 
     if regularizer is None:
         loss_op = model_loss
@@ -116,6 +116,7 @@ def eval(manager, source,
 
     # We keep 1 model with the best loss.
     saver = tf.train.Saver(max_to_keep=1)
+    best_acc = 0.
     best_loss = np.inf
     best_epoch = 0
 
@@ -146,15 +147,22 @@ def eval(manager, source,
                 train_writer.add_summary(summary, epoch)
 
                 dict = data.eval_feed(val = True)
-                summary, val_loss = sess.run([summary_op, loss_op], feed_dict = dict)
+                summary, val_loss, val_acc = sess.run([summary_op, loss_op, acc_op], feed_dict = dict)
                 val_writer.add_summary(summary, epoch)
 
-                #Save best model
-                if val_loss < best_loss:
-                    print(os.getcwd(), " ", epoch, " ", val_loss)
-                    best_loss = val_loss
-                    best_epoch = epoch
-                    saver.save(sess, "./model.cpkt")
+                if manager == "regression":
+                    if val_loss < best_loss:
+                        print(os.getcwd(), " ", epoch, " ", val_loss)
+                        best_loss = val_loss
+                        best_epoch = epoch
+                        saver.save(sess, "./model.cpkt")
+                elif manager in {"hospital_readmission", "support2"}:
+                    # Save best model
+                    if val_acc > best_acc:
+                        print(os.getcwd(), " ", epoch, " ", val_acc)
+                        best_acc = val_acc
+                        best_epoch = epoch
+                        saver.save(sess, "./model.cpkt")
 
             epoch += 1
 
