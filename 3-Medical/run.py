@@ -17,7 +17,7 @@ DATASET_PATHS = {
 }
 
 # Search Space
-datasets = ["hospital_readmission", "support2"]
+datasets = ["support2"]
 depths = [1, 2]
 sizes = [32, 64, 128]
 rates = [0.0001, 0.001, 0.01]
@@ -44,7 +44,7 @@ def run(args):
     out = eval(manager, source,
                hidden_layer_sizes=shape,
                learning_rate=rate,
-               stopping_epochs=100)
+               stopping_epochs=1000)
 
     with open("out.json", "w") as f:
         json.dump(out, f)
@@ -53,7 +53,7 @@ def run(args):
 
 
 run_search(run_fn=run,
-           num_processes=12,
+           num_processes=8,
            run_search=True,
            process_search=True,
            run_final=True,
