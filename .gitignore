@@ -12,3 +12,7 @@
 
 # IPython notebooks
 .ipynb_checkpoints
+
+# Sync
+sync
+.sync-exclude

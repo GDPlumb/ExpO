@@ -7,10 +7,24 @@ from ExplanationMetrics import Wrapper, metrics_maple, metrics_lime
 from Models import MLP
 from Regularizers import Regularizer
 
-def eval(manager, source, #Data magnager and data source
-        hidden_layer_sizes, learning_rate, stopping_epochs = 1000, #Network parameters
-        regularizer = None, c = 1, #Regularizer parameters
-        evaluate_maple = True, evaluate_lime = True): #Explanation evaluation metrics
+# For reproducibility
+np.random.seed(42)
+tf.set_random_seed(42)
+
+# Allow multiple sessions on a single GPU.
+tf_config = tf.ConfigProto()
+tf_config.gpu_options.allow_growth = True
+
+
+def eval(manager, source,
+         # Network parameters
+         hidden_layer_sizes=(32,), learning_rate=0.0001, stopping_epochs=1000,
+         # Regularizer parameters
+         regularizer=None, c=1.0,
+         # Training parameters
+         batch_size=32, reg_batch_size=4,
+         # Explanation evaluation metrics
+         evaluate_maple=True, evaluate_lime=True):
 
     if manager == "regression":
         from Data import DataManager
@@ -22,27 +36,27 @@ def eval(manager, source, #Data magnager and data source
         raise ValueError("Unknown dataset: %s" % manager)
 
     # Reset TF graph (avoids issues with repeat experiments)
-    tf.reset_default_graph()
-
-    # Parameters
-    batch_size = 32
-    reg_batch_size = 4
+    # MA: this reset makes processes hang...
+    # tf.reset_default_graph()
 
     # Get Data
-    if regularizer != None:
-        data = DataManager(source, train_batch_size = batch_size, reg_batch_size = reg_batch_size)
+    if regularizer is not None:
+        data = DataManager(source,
+                           train_batch_size=batch_size,
+                           reg_batch_size=reg_batch_size)
     else:
-        data = DataManager(source, train_batch_size = batch_size)
+        data = DataManager(source,
+                           train_batch_size=batch_size)
 
     n = data.X_train.shape[0]
     n_input = data.X_train.shape[1]
     n_out = data.y_train.shape[1]
 
     # Regularizer Parameters
-    if regularizer != None:
+    if regularizer is not None:
         # Weight of the regularization term in the loss function
         c = tf.constant(c)
-        #Number of neighbors to hallucinate per point
+        # Number of neighbors to hallucinate per point
         num_samples = np.max((20, np.int(2 * n_input)))
 
     # Network Parameters
@@ -54,11 +68,11 @@ def eval(manager, source, #Data magnager and data source
     # Graph inputs
     X = tf.placeholder("float", [None, n_input], name = "X_in")
     Y = tf.placeholder("float", [None, n_out], name = "Y_in")
-    if regularizer != None:
+    if regularizer is not None:
         X_reg = tf.placeholder("float", [None, n_input], name="X_reg")
 
     # Link the graph inputs into the DataManager so its train_feed() and eval_feed() functions work
-    if regularizer != None:
+    if regularizer is not None:
         data.link_graph(X, Y, X_reg = X_reg)
     else:
         data.link_graph(X, Y)
@@ -75,15 +89,17 @@ def eval(manager, source, #Data magnager and data source
 
     # Define the loss and optimization process
     if manager == "regression":
-        model_loss = tf.losses.mean_squared_error(labels = Y, predictions = pred)
+        model_loss = tf.losses.mean_squared_error(labels=Y, predictions=pred)
         tf.summary.scalar("MSE", model_loss)
     elif manager in {"hospital_readmission", "support2"}:
-        model_loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels = Y, logits = pred))
-        _, acc_op = tf.metrics.accuracy(labels = tf.argmax(Y, 1), predictions = tf.argmax(pred, 1))
+        model_loss = tf.reduce_mean(
+            tf.nn.softmax_cross_entropy_with_logits(labels=Y, logits=pred))
+        _, acc_op = tf.metrics.accuracy(
+            labels=tf.argmax(Y, 1), predictions=tf.argmax(pred, 1))
         tf.summary.scalar("Cross-entropy:", model_loss)
         tf.summary.scalar("Accuracy:", acc_op)
 
-    if regularizer == None:
+    if regularizer is None:
         loss_op = model_loss
     else:
         loss_op = model_loss + c * reg
@@ -92,17 +108,18 @@ def eval(manager, source, #Data magnager and data source
 
     summary_op = tf.summary.merge_all()
 
-    optimizer = tf.train.AdamOptimizer(learning_rate = learning_rate)
+    optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate)
     train_op = optimizer.minimize(loss_op)
 
     # Train the model
     init = [tf.global_variables_initializer(), tf.local_variables_initializer()]
 
-    saver = tf.train.Saver(max_to_keep=1) #We are going to keep the model with the best loss
+    # We keep 1 model with the best loss.
+    saver = tf.train.Saver(max_to_keep=1)
     best_loss = np.inf
     best_epoch = 0
 
-    with tf.Session() as sess:
+    with tf.Session(config=tf_config) as sess:
         train_writer = tf.summary.FileWriter("train", sess.graph)
         val_writer = tf.summary.FileWriter("val")
 
