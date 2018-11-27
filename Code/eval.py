@@ -1,19 +1,13 @@
 
 import numpy as np
 import os
-import tensorflow as tf
 
 from ExplanationMetrics import Wrapper, metrics_maple, metrics_lime
 from Models import MLP
 from Regularizers import Regularizer
 
-# For reproducibility
-np.random.seed(42)
-tf.set_random_seed(42)
 
-# Allow multiple sessions on a single GPU.
-tf_config = tf.ConfigProto()
-tf_config.gpu_options.allow_growth = True
+np.random.seed(42)
 
 
 def eval(manager, source,
@@ -26,6 +20,19 @@ def eval(manager, source,
          # Explanation evaluation metrics
          evaluate_maple=True, evaluate_lime=True):
 
+    # TF is not fork-safe.
+    import tensorflow as tf
+
+    # For reproducibility
+    tf.set_random_seed(42)
+
+    # Allow multiple sessions on a single GPU.
+    tf_config = tf.ConfigProto()
+    tf_config.gpu_options.allow_growth = True
+
+    # Reset TF graph (avoids issues with repeat experiments)
+    tf.reset_default_graph()
+
     if manager == "regression":
         from Data import DataManager
     elif manager == "hospital_readmission":
@@ -34,10 +41,6 @@ def eval(manager, source,
         from MedicalData import Support2DataManager as DataManager
     else:
         raise ValueError("Unknown dataset: %s" % manager)
-
-    # Reset TF graph (avoids issues with repeat experiments)
-    # MA: this reset makes processes hang...
-    # tf.reset_default_graph()
 
     # Get Data
     if regularizer is not None:
