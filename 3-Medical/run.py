@@ -20,8 +20,8 @@ DATASET_PATHS = {
 datasets = ["support2"]
 depths = [1, 2]
 sizes = [32, 64, 128]
-rates = [0.0001, 0.001, 0.01]
-regs = []
+rates = [0.001, 0.01]
+regs = [1e0, 1e1, 1e2]
 
 # Run function
 def run(args):
@@ -30,8 +30,9 @@ def run(args):
     depth = args[2]
     size = args[3]
     rate = args[4]
+    reg = args[5]
 
-    name = args2name(dataset, trial, depth, size, rate)
+    name = args2name(dataset, trial, depth, size, rate, reg)
 
     cwd = os.getcwd()
 
@@ -44,6 +45,8 @@ def run(args):
     out = eval(manager, source,
                hidden_layer_sizes=shape,
                learning_rate=rate,
+               regularizer="Causal",
+               c=reg,
                stopping_epochs=1000)
 
     with open("out.json", "w") as f:
@@ -64,5 +67,5 @@ run_search(run_fn=run,
            depths=depths,
            sizes=sizes,
            rates=rates,
-           regularized=False,
+           regularized=True,
            regs=regs)

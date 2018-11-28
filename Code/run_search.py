@@ -1,13 +1,15 @@
 
 import itertools
 import json
-from multiprocessing import Pool
 import numpy as np
 import operator
 import os
 import pandas as pd
 
-def args2name(dataset, trial, depth, size, rate, reg = None):
+from multiprocessing import Pool
+
+
+def args2name(dataset, trial, depth, size, rate, reg=None):
     if reg == None:
         return "TF/" + dataset + "/" + str([size] * depth) + "/" + str(rate) + "/trial" + str(trial)
     else:
