@@ -14,6 +14,8 @@ def eval(manager, source, #Data magnager and data source
 
     if manager == "regression":
         from Data import DataManager
+    elif manager == "binary_classification":
+        from BinaryData import BinaryClassificationDataManager as DataManager
     elif manager == "hospital_readmission":
         from MedicalData import HospitalReadmissionDataManager as DataManager
     elif manager == "support2":
@@ -77,6 +79,11 @@ def eval(manager, source, #Data magnager and data source
     if manager == "regression":
         model_loss = tf.losses.mean_squared_error(labels = Y, predictions = pred)
         tf.summary.scalar("MSE", model_loss)
+    elif manager == "binary_classification":
+        model_loss = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(labels = Y, logits = pred))
+        _, acc_op = tf.metrics.accuracy(labels = Y, predictions = tf.round(tf.nn.sigmoid(pred)))
+        tf.summary.scalar("Cross-entropy:", model_loss)
+        tf.summary.scalar("Accuracy:", acc_op)
     elif manager in {"hospital_readmission", "support2"}:
         model_loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels = Y, logits = pred))
         _, acc_op = tf.metrics.accuracy(labels = tf.argmax(Y, 1), predictions = tf.argmax(pred, 1))
@@ -154,7 +161,7 @@ def eval(manager, source, #Data magnager and data source
         # Evaluate Accuracy
         if manager == "regression":
             test_acc, test_pred = sess.run([model_loss, pred], feed_dict = {X: data.X_test, Y: data.y_test})
-        elif manager == "hospital_readmission" or manager == "support2":
+        elif manager in {"binary_classification", "hospital_readmission", "support2"}:
             test_acc, test_pred = sess.run([acc_op, pred], feed_dict={X: data.X_test, Y: data.y_test})
 
         out["test_acc"] = np.float64(test_acc)
