@@ -1,13 +1,15 @@
 
 import itertools
 import json
-from multiprocessing import Pool
 import numpy as np
 import operator
 import os
 import pandas as pd
 
-def args2name(dataset, trial, depth, size, rate, reg = None):
+from multiprocessing import Pool
+
+
+def args2name(dataset, trial, depth, size, rate, reg=None):
     if reg == None:
         return "TF/" + dataset + "/" + str([size] * depth) + "/" + str(rate) + "/trial" + str(trial)
     else:
@@ -28,10 +30,10 @@ def name2args(name):
         return dataset, depth, size, rate
 
 def run_search(run_fn = None, num_processes = 5,
-                    run_search = True, process_search = True, run_final = True, process_final = True,
-                    n_search = 1, n_final = 1,
-                    datasets = None, depths = None, sizes = None, rates = None,
-                    regularized = False, regs = None):
+               run_search = True, process_search = True, run_final = True, process_final = True,
+               n_search = 1, n_final = 1,
+               datasets = None, depths = None, sizes = None, rates = None,
+               regularized = False, regs = None):
 
     if run_search or process_search:
         trials = list(range(n_search))
@@ -45,6 +47,8 @@ def run_search(run_fn = None, num_processes = 5,
 
         p = Pool(num_processes)
         p.map(run_fn, configs)
+        p.close()
+        p.join()
 
     if process_search:
 
