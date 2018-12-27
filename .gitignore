@@ -1,6 +1,9 @@
 *.AppleDouble
 *__pycache__
 
+*run_aws.sh
+*ping.py
+
 */TF/*
 */TF-initial/*
 

@@ -95,7 +95,7 @@ def metrics_lime(model, X_train, X_test):
     # Configure LIME
     exp = lime_tabular.LimeTabularExplainer(X_train, discretize_continuous = False, mode = "regression")
 
-    def unpack_coefs(explainer, x, predict_fn, num_features, x_train, num_samples = 5000):
+    def unpack_coefs(explainer, x, predict_fn, num_features, x_train, num_samples = 1000):
         d = x_train.shape[1]
         coefs = np.zeros((d))
 
