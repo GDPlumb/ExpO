@@ -1,30 +1,21 @@
 
 import numpy as np
 import os
+import tensorflow as tf
 
 from ExplanationMetrics import Wrapper, metrics_maple, metrics_lime
 from Models import MLP
 from Regularizers import Regularizer
 
-
-np.random.seed(42)
-
-
 def eval(manager, source,
          # Network parameters
-         hidden_layer_sizes=(32,), learning_rate=0.0001, stopping_epochs=1000,
+         hidden_layer_sizes = [32], learning_rate = 0.001,
          # Regularizer parameters
-         regularizer=None, c=1.0,
+         regularizer = None, c = 1.0,
          # Training parameters
-         batch_size=32, reg_batch_size=4,
+         batch_size = 32, reg_batch_size = 4, stopping_epochs = 500, min_epochs = 1000,
          # Explanation evaluation metrics
-         evaluate_maple=True, evaluate_lime=True):
-
-    # TF is not fork-safe.
-    import tensorflow as tf
-
-    # For reproducibility
-    tf.set_random_seed(42)
+         evaluate_explanation = True):
 
     # Allow multiple sessions on a single GPU.
     tf_config = tf.ConfigProto()
@@ -33,6 +24,7 @@ def eval(manager, source,
     # Reset TF graph (avoids issues with repeat experiments)
     tf.reset_default_graph()
 
+    # Load the Data Manager
     if manager == "regression":
         from Data import DataManager
     elif manager == "binary_classification":
@@ -42,16 +34,16 @@ def eval(manager, source,
     elif manager == "support2":
         from MedicalData import Support2DataManager as DataManager
     else:
-        raise ValueError("Unknown dataset: %s" % manager)
+        raise ValueError("Unknown manager: %s" % manager)
 
     # Get Data
     if regularizer is not None:
         data = DataManager(source,
-                           train_batch_size=batch_size,
-                           reg_batch_size=reg_batch_size)
+                           train_batch_size = batch_size,
+                           reg_batch_size = reg_batch_size)
     else:
         data = DataManager(source,
-                           train_batch_size=batch_size)
+                           train_batch_size = batch_size)
 
     n = data.X_train.shape[0]
     n_input = data.X_train.shape[1]
@@ -94,20 +86,19 @@ def eval(manager, source,
 
     # Define the loss and optimization process
     if manager == "regression":
-        model_loss = tf.losses.mean_squared_error(labels=Y, predictions=pred)
+        model_loss = tf.losses.mean_squared_error(labels = Y, predictions = pred)
         tf.summary.scalar("MSE", model_loss)
+        perf_op = model_loss
     elif manager == "binary_classification":
         model_loss = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(labels = Y, logits = pred))
-        _, acc_op = tf.metrics.accuracy(labels = Y, predictions = tf.round(tf.nn.sigmoid(pred)))
         tf.summary.scalar("Cross-entropy:", model_loss)
-        tf.summary.scalar("Accuracy:", acc_op)
+        _, perf_op = tf.metrics.accuracy(labels = Y, predictions = tf.round(tf.nn.sigmoid(pred)))
+        tf.summary.scalar("Accuracy:", perf_op)
     elif manager in {"hospital_readmission", "support2"}:
-        model_loss = tf.reduce_mean(
-            tf.nn.softmax_cross_entropy_with_logits(labels=Y, logits=pred))
-        _, acc_op = tf.metrics.accuracy(
-            labels=tf.argmax(Y, 1), predictions=tf.argmax(pred, 1))
+        model_loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels = Y, logits = pred))
         tf.summary.scalar("Cross-entropy", model_loss)
-        tf.summary.scalar("Accuracy", acc_op)
+        _, perf_op = tf.metrics.accuracy(labels = tf.argmax(Y, 1), predictions = tf.argmax(pred, 1))
+        tf.summary.scalar("Accuracy", perf_op)
 
     if regularizer is None:
         loss_op = model_loss
@@ -118,59 +109,57 @@ def eval(manager, source,
 
     summary_op = tf.summary.merge_all()
 
-    optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate)
+    optimizer = tf.train.AdamOptimizer(learning_rate = learning_rate)
     train_op = optimizer.minimize(loss_op)
 
     # Train the model
     init = [tf.global_variables_initializer(), tf.local_variables_initializer()]
 
     # We keep 1 model with the best loss.
-    saver = tf.train.Saver(max_to_keep=1)
+    saver = tf.train.Saver(max_to_keep = 1)
     best_acc = 0.
     best_loss = np.inf
     best_epoch = 0
-
-    with tf.Session(config=tf_config) as sess:
+    with tf.Session(config = tf_config) as sess:
         train_writer = tf.summary.FileWriter("train", sess.graph)
         val_writer = tf.summary.FileWriter("val")
 
         sess.run(init)
 
-        #print("Training NN")
         epoch = 0
         while True:
 
-            # Early stopping condition
-            if epoch - best_epoch > stopping_epochs:
+            # Stopping condition
+            if epoch - best_epoch > stopping_epochs and epoch > min_epochs:
                 break
 
             # Run a training epoch
             total_batch = int(n / batch_size)
             for i in range(total_batch):
                 dict = data.train_feed()
-                sess.run(train_op, feed_dict=dict)
+                sess.run(train_op, feed_dict = dict)
 
             # Run model metrics
-            if epoch % 20 == 0:
+            if epoch % 10 == 0:
                 dict = data.eval_feed()
                 summary = sess.run(summary_op, feed_dict = dict)
                 train_writer.add_summary(summary, epoch)
 
                 dict = data.eval_feed(val = True)
-                summary, val_loss, val_acc = sess.run([summary_op, loss_op, acc_op], feed_dict = dict)
+                summary, val_perf = sess.run([summary_op, perf_op], feed_dict = dict)
                 val_writer.add_summary(summary, epoch)
 
                 if manager == "regression":
-                    if val_loss < best_loss:
-                        print(os.getcwd(), " ", epoch, " ", val_loss)
-                        best_loss = val_loss
+                    if val_perf < best_loss:
+                        print(os.getcwd(), " ", epoch, " ", val_perf)
+                        best_loss = val_perf
                         best_epoch = epoch
                         saver.save(sess, "./model.cpkt")
-                elif manager in {"hospital_readmission", "support2"}:
+                elif manager in {"binary_classification", "hospital_readmission", "support2"}:
                     # Save best model
-                    if val_acc > best_acc:
-                        print(os.getcwd(), " ", epoch, " ", val_acc)
-                        best_acc = val_acc
+                    if val_perf > best_acc:
+                        print(os.getcwd(), " ", epoch, " ", val_perf)
+                        best_acc = val_perf
                         best_epoch = epoch
                         saver.save(sess, "./model.cpkt")
 
@@ -187,16 +176,13 @@ def eval(manager, source,
         out = {}
 
         # Evaluate Accuracy
-        if manager == "regression":
-            test_acc, test_pred = sess.run([model_loss, pred], feed_dict = {X: data.X_test, Y: data.y_test})
-        elif manager in {"binary_classification", "hospital_readmission", "support2"}:
-            test_acc, test_pred = sess.run([acc_op, pred], feed_dict={X: data.X_test, Y: data.y_test})
+        test_acc, test_pred = sess.run([perf_op, pred], feed_dict = {X: data.X_test, Y: data.y_test})
 
         out["test_acc"] = np.float64(test_acc)
 
-        wrapper = Wrapper(sess, pred, X)
+        if evaluate_explanation:
+            wrapper = Wrapper(sess, pred, X)
 
-        if evaluate_maple:
             print(os.getcwd(), " MAPLE")
             maple_standard_metric, maple_causal_metric, maple_stability_metric = metrics_maple(wrapper, data.X_train, data.X_val, data.X_test)
 
@@ -204,7 +190,6 @@ def eval(manager, source,
             out["maple_causal_metric"] = maple_causal_metric.tolist()
             out["maple_stability_metric"] = maple_stability_metric.tolist()
 
-        if evaluate_lime:
             print(os.getcwd(), " LIME")
             lime_standard_metric, lime_causal_metric, lime_stability_metric = metrics_lime(wrapper, data.X_train, data.X_test)
 

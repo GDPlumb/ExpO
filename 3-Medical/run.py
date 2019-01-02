@@ -8,7 +8,7 @@ from eval import eval
 from run_search import run_search, args2name
 
 # The networks are small enough that training is faster on CPU
-os.environ["CUDA_VISIBLE_DEVICES"]="0"
+os.environ["CUDA_VISIBLE_DEVICES"]="-1"
 
 # Location of Datasets
 DATASET_PATHS = {
@@ -17,22 +17,20 @@ DATASET_PATHS = {
 }
 
 # Search Space
-datasets = ["support2"]
+datasets = ["support2"] #, "hospital_readmission"]
 depths = [1, 2]
 sizes = [32, 64, 128]
 rates = [0.001, 0.01]
-regs = [1e0, 1e1, 1e2]
 
 # Run function
-def run(args):
+def run_fn(args, evaluate_explanation = True):
     dataset = args[0]
     trial = args[1]
     depth = args[2]
     size = args[3]
     rate = args[4]
-    reg = args[5]
 
-    name = args2name(dataset, trial, depth, size, rate, reg)
+    name = args2name(dataset, trial, depth, size, rate)
 
     cwd = os.getcwd()
 
@@ -43,29 +41,20 @@ def run(args):
     source = DATASET_PATHS[dataset]
     shape = [size] * depth
     out = eval(manager, source,
-               hidden_layer_sizes=shape,
-               learning_rate=rate,
-               regularizer="Causal",
-               c=reg,
-               stopping_epochs=1000)
+               hidden_layer_sizes = shape,
+               learning_rate = rate,
+               evaluate_explanation = evaluate_explanation)
 
     with open("out.json", "w") as f:
         json.dump(out, f)
 
     os.chdir(cwd)
 
+def run_fn_search(*args):
+    return run_fn(*args, evaluate_explanation = False)
 
-run_search(run_fn=run,
-           num_processes=8,
-           run_search=True,
-           process_search=True,
-           run_final=True,
-           process_final=True,
-           n_search=1,
-           n_final=1,
-           datasets=datasets,
-           depths=depths,
-           sizes=sizes,
-           rates=rates,
-           regularized=True,
-           regs=regs)
+run_search(run_fn_search = run_fn_search, run_fn_final = run_fn, num_processes = 4,
+            run_search = True, process_search = True, run_final = True, process_final = True,
+            n_search = 1, n_final = 10,
+            datasets = datasets, depths = depths, sizes = sizes, rates = rates,
+            regularized = False, regs = None)

@@ -18,13 +18,13 @@ DATASET_PATHS = {
 
 # Search Space
 datasets = ["support2"] #, "hospital_readmission"]
-depths = [1]
-sizes = [32]
-rates = [0.0001]
-regs = [1.0]
+depths = [1, 2]
+sizes = [32, 64, 128]
+rates = [0.001, 0.01]
+regs = [1e0, 1e1, 1e2]
 
 # Run function
-def run(args):
+def run_fn(args, evaluate_explanation = True):
     dataset = args[0]
     trial = args[1]
     depth = args[2]
@@ -40,17 +40,24 @@ def run(args):
     os.chdir(name)
 
     manager = dataset
-    source =  DATASET_PATHS[dataset]
+    source = DATASET_PATHS[dataset]
     shape = [size] * depth
-    out = eval(manager, source, shape, rate, stopping_epochs = 60, regularizer = "Causal", c = reg)
+    out = eval(manager, source,
+           hidden_layer_sizes = shape,
+           learning_rate = rate,
+           regularizer = "Causal", c = reg,
+           evaluate_explanation = evaluate_explanation)
 
     with open("out.json", "w") as f:
         json.dump(out, f)
 
     os.chdir(cwd)
 
-run_search(run_fn = run, num_processes = 5,
+def run_fn_search(*args):
+    return run_fn(*args, evaluate_explanation = False)
+
+run_search(run_fn_search = run_fn_search, run_fn_final = run_fn, num_processes = 4,
             run_search = True, process_search = True, run_final = True, process_final = True,
-            n_search = 1, n_final = 1,
+            n_search = 1, n_final = 10,
             datasets = datasets, depths = depths, sizes = sizes, rates = rates,
             regularized = True, regs = regs)

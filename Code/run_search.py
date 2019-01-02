@@ -8,7 +8,6 @@ import pandas as pd
 
 from multiprocessing import Pool
 
-
 def args2name(dataset, trial, depth, size, rate, reg=None):
     if reg == None:
         return "TF/" + dataset + "/" + str([size] * depth) + "/" + str(rate) + "/trial" + str(trial)
@@ -29,7 +28,7 @@ def name2args(name):
     else:
         return dataset, depth, size, rate
 
-def run_search(run_fn = None, num_processes = 5,
+def run_search(run_fn_search = None, run_fn_final = None, num_processes = 5,
                run_search = True, process_search = True, run_final = True, process_final = True,
                n_search = 1, n_final = 1,
                datasets = None, depths = None, sizes = None, rates = None,
@@ -46,7 +45,7 @@ def run_search(run_fn = None, num_processes = 5,
             configs = itertools.product(datasets, trials, depths, sizes, rates)
 
         p = Pool(num_processes)
-        p.map(run_fn, configs)
+        p.map(run_fn_search, configs)
         p.close()
         p.join()
 
@@ -125,7 +124,7 @@ def run_search(run_fn = None, num_processes = 5,
 
     if run_final:
         p = Pool(num_processes)
-        p.map(run_fn, configs)
+        p.map(run_fn_final, configs)
 
     if process_final:
 
@@ -153,4 +152,26 @@ def run_search(run_fn = None, num_processes = 5,
             for name in columns:
                 df.ix[args[0], name] += np.asarray(data[name]) / n_final
 
-        df.to_csv("results.csv")
+        df.to_csv("results_mean.csv")
+
+        df_sd = pd.DataFrame(0, index = datasets, columns = columns)
+        df_sd = df_sd.astype("object")
+
+        for args in configs:
+
+            if regularized:
+                with open(args2name(args[0], args[1], args[2], args[3], args[4], args[5]) + "/out.json") as f:
+                    data = json.load(f)
+            else:
+                with open(args2name(args[0], args[1], args[2], args[3], args[4]) + "/out.json") as f:
+                    data = json.load(f)
+
+            for name in columns:
+                delta = np.asarray(data[name]) - df.ix[args[0], name]
+                df_sd.ix[args[0], name] += delta**2 / (n_final - 1)
+                
+        for dataset in datasets:
+            for column in columns:
+                df_sd.ix[dataset, column] = np.sqrt(df_sd.ix[dataset, column])
+
+        df_sd.to_csv("results_sd.csv")
