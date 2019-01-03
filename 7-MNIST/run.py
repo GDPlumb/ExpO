@@ -1,7 +1,9 @@
 
-import numpy as np
+import matplotlib as mpl
+mpl.use('Agg')
+import matplotlib.pyplot as plt
 
-from PIL import Image
+import numpy as np
 
 import tensorflow as tf
 from tensorflow.examples.tutorials.mnist import input_data
@@ -78,6 +80,21 @@ def eval(
     optimizer = tf.train.AdamOptimizer(learning_rate = learning_rate)
     train_op = optimizer.minimize(loss_op)
 
+    # Saliency Explanation Evaluation
+    def saliency_map(predictions):
+        indices = tf.cast(tf.argmax(predictions, axis = 1), tf.int32)
+        row_indices = tf.cast(tf.range(tf.shape(indices)[0]), tf.int32)
+        full_indices = tf.stack([row_indices, indices], axis = 1)
+        targets = tf.gather_nd(predictions, full_indices)
+        map = tf.gradients(targets, X_shaped)
+        return map
+
+    sm_reg = saliency_map(pred)
+    sm_per = saliency_map(pred_perturbed)
+
+    explanation_stability = tf.losses.mean_squared_error(labels = sm_reg, predictions = sm_per)
+    tf.summary.scalar("Explanation Stability", explanation_stability)
+
     # Train the model
     summary_op = tf.summary.merge_all()
     init = [tf.global_variables_initializer(), tf.local_variables_initializer()]
@@ -101,43 +118,31 @@ def eval(
         print(sess.run(accuracy, feed_dict={X: mnist.test.images, Y: mnist.test.labels}), file = out)
         out.flush()
 
-        # Saliency Explanation Evaluation
-        def saliency_map(predictions):
-            indices = tf.cast(tf.argmax(predictions, axis = 1), tf.int32)
-            row_indices = tf.cast(tf.range(tf.shape(indices)[0]), tf.int32)
-            full_indices = tf.stack([row_indices, indices], axis = 1)
-            targets = tf.gather_nd(predictions, full_indices)
-            map = tf.gradients(targets, X_shaped)
-            return map
-        
-        sm_reg = saliency_map(pred)
-        sm_per = saliency_map(pred_perturbed)
-
-        dist = tf.losses.mean_squared_error(labels = sm_reg, predictions = sm_per)
-
         print("Explanation MSE", file = out)
-        print(sess.run(dist, {X: mnist.test.images}), file = out)
+        print(sess.run(explanation_stability, {X: mnist.test.images}), file = out)
         out.flush()
 
         # Sanity check that the explanations look reasonable
-        x = mnist.test.images[1]
+        x = mnist.test.images[0]
 
-        im = Image.fromarray((np.reshape(x, (28, 28)) * 255).astype(np.uint8), "L")
-        im.save(name + "_original.jpeg")
-
+        plt.imshow(np.reshape(x, (28,28)), cmap = "gray")
+        plt.savefig(name + "_original.jpeg")
+        plt.close()
+        
         m = sess.run(sm_reg, {X: np.expand_dims(x, 0)})
         
+        '''
         m -= np.mean(m)
         m /= (np.std(m) + 1e-5)
         m *= 0.1
         m += 0.5
-        m *= 255
-        m = np.clip(m, 0, 255)
-        m = m.astype("uint8")
+        m = np.clip(m, 0, 1)
+        '''
         m = np.reshape(m, (28, 28))
-
-        im = Image.fromarray(m, "L")
-        im.save(name + "_explanation.jpeg")
+        
+        plt.imshow(np.reshape(m, (28,28)), cmap = "jet")
+        plt.savefig(name + "_explanation.jpeg")
+        plt.close()
 
 print("Unregularized Model", file = out)
 eval(regularize = False, name = "unregularized")
