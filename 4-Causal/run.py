@@ -56,8 +56,10 @@ def run_fn(args, evaluate_explanation = True):
 def run_fn_search(*args):
     return run_fn(*args, evaluate_explanation = False)
 
-run_search(run_fn_search = run_fn_search, run_fn_final = run_fn, num_processes = 4,
-            run_search = True, process_search = True, run_final = True, process_final = True,
-            n_search = 1, n_final = 10,
+run_search(run_fn_search = run_fn_search, n_search = 1, lower_is_better = False,
+            run_search = True, process_search = True,
+            run_fn_final = run_fn, n_final = 10,
+            run_final = True, process_final = True,
             datasets = datasets, depths = depths, sizes = sizes, rates = rates,
-            regularized = True, regs = regs)
+            regularized = False, regs = None,
+            num_processes = 4)

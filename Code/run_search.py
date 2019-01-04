@@ -28,11 +28,13 @@ def name2args(name):
     else:
         return dataset, depth, size, rate
 
-def run_search(run_fn_search = None, run_fn_final = None, num_processes = 5,
-               run_search = True, process_search = True, run_final = True, process_final = True,
-               n_search = 1, n_final = 1,
-               datasets = None, depths = None, sizes = None, rates = None,
-               regularized = False, regs = None):
+def run_search(run_fn_search = None, n_search = 1, lower_is_better = True,
+                run_search = True, process_search = True,
+                run_fn_final = None,  n_final = 1,
+                run_final = True, process_final = True,
+                datasets = None, depths = None, sizes = None, rates = None,
+                regularized = False, regs = None,
+                num_processes = 1):
 
     if run_search or process_search:
         trials = list(range(n_search))
@@ -88,7 +90,10 @@ def run_search(run_fn_search = None, run_fn_final = None, num_processes = 5,
 
             agg[dataset] = list_means
 
-            sorted_means = sorted(list_means.items(), key = operator.itemgetter(1))
+            if lower_is_better:
+                sorted_means = sorted(list_means.items(), key = operator.itemgetter(1))
+            else:
+                sorted_means = sorted(list_means.items(), key = operator.itemgetter(1), reverse = True)
 
             # Get the configuration with the best average performance
             args = name2args(sorted_means[0][0])
