@@ -17,7 +17,7 @@ class BinaryClassificationDataManager(DataManager):
         df_train = self.load_data()
 
         # Split train, test, valid - Change up train valid test every iteration
-        df_train, df_test = train_test_split(df_train, test_size=0.8)
+        df_train, df_test = train_test_split(df_train, test_size=0.25)
         df_valid, df_test = train_test_split(df_test, test_size=0.5)
 
         # delete features for which all entries are equal (or below a given threshold)
@@ -36,9 +36,9 @@ class BinaryClassificationDataManager(DataManager):
         X_train_mean = X_train.mean()
 
         # Normalize to have mean 0 and variance 1
-        #X_train = (X_train - X_train_mean) / X_train_stddev
-        #X_valid = (X_valid - X_train_mean) / X_train_stddev
-        #X_test = (X_test - X_train_mean) / X_train_stddev
+        X_train = (X_train - X_train_mean) / X_train_stddev
+        X_valid = (X_valid - X_train_mean) / X_train_stddev
+        X_test = (X_test - X_train_mean) / X_train_stddev
 
         # Convert to np arrays
         X_train = X_train.values
