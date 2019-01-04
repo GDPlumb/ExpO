@@ -147,3 +147,35 @@ def metrics_lime(model, X_train, X_test):
     stability_metric /= num_perturbations * n_test
 
     return standard_metric, causal_metric, stability_metric
+
+'''
+The observed values for the Support datasets for the previous two metrics seem unreasonable.
+This function is intended to check the variance of a learned model across the neighborhood to see if the results make sense.
+
+It also may help provide context to the other metrics
+'''
+def metrics_variance(model, X):
+
+    n_pert = 20
+
+    n = X.shape[0]
+    d = X.shape[1]
+
+    n_out = model.predict(X[0, :].reshape((1,d))).shape[1]
+
+    var = np.zeros((n_out))
+
+    for i in range(n):
+        x = X[i, :]
+
+        x_pert = np.zeros((n_pert, d))
+        for j in range(n_pert):
+            x_pert[j, :] = generate_neighbor(x)
+
+        pred_pert = model.predict(x_pert)
+
+        var += np.var(pred_pert, axis = 0)
+
+    var /= n
+
+    return var

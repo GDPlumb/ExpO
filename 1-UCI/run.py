@@ -37,7 +37,11 @@ def run_fn(args, evaluate_explanation = True):
     manager = "regression"
     source =  DATASET_PATH + dataset + ".csv"
     shape = [size] * depth
-    out = eval(manager, source, shape, rate, evaluate_explanation = evaluate_explanation)
+    out = eval(manager, source,
+               hidden_layer_sizes = shape,
+               learning_rate = rate,
+               evaluate_explanation = evaluate_explanation,
+               stop_on_loss = True)
 
     with open("out.json", "w") as f:
         json.dump(out, f)
@@ -47,8 +51,10 @@ def run_fn(args, evaluate_explanation = True):
 def run_fn_search(*args):
     return run_fn(*args, evaluate_explanation = False)
 
-run_search(run_fn_search = run_fn_search, run_fn_final = run_fn, num_processes = 4,
-            run_search = True, process_search = True, run_final = True, process_final = True,
-            n_search = 1, n_final = 10,
+run_search(run_fn_search = run_fn_search, n_search = 1, lower_is_better = True,
+            run_search = True, process_search = True,
+            run_fn_final = run_fn, n_final = 10,
+            run_final = True, process_final = True,
             datasets = datasets, depths = depths, sizes = sizes, rates = rates,
-            regularized = False, regs = None)
+            regularized = False, regs = None,
+            num_processes = 4)

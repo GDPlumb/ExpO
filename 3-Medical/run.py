@@ -18,9 +18,9 @@ DATASET_PATHS = {
 
 # Search Space
 datasets = ["support2"] #, "hospital_readmission"]
-depths = [1, 2]
-sizes = [32, 64, 128]
-rates = [0.001, 0.01]
+depths = [1, 2, 3]
+sizes = [100, 150, 200, 250, 300]
+rates = [0.001]
 
 # Run function
 def run_fn(args, evaluate_explanation = True):
@@ -43,7 +43,8 @@ def run_fn(args, evaluate_explanation = True):
     out = eval(manager, source,
                hidden_layer_sizes = shape,
                learning_rate = rate,
-               evaluate_explanation = evaluate_explanation)
+               evaluate_explanation = evaluate_explanation,
+               stop_on_loss = True)
 
     with open("out.json", "w") as f:
         json.dump(out, f)

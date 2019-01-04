@@ -3,7 +3,7 @@ import numpy as np
 import os
 import tensorflow as tf
 
-from ExplanationMetrics import Wrapper, metrics_maple, metrics_lime
+from ExplanationMetrics import Wrapper, metrics_maple, metrics_lime, metrics_variance
 from Models import MLP
 from Regularizers import Regularizer
 
@@ -13,7 +13,7 @@ def eval(manager, source,
          # Regularizer parameters
          regularizer = None, c = 1.0,
          # Training parameters
-         batch_size = 32, reg_batch_size = 4, stopping_epochs = 500, min_epochs = 1000,
+         batch_size = 32, reg_batch_size = 4, stopping_epochs = 500, min_epochs = 1000, stop_on_loss = False,
          # Explanation evaluation metrics
          evaluate_explanation = True):
 
@@ -86,19 +86,30 @@ def eval(manager, source,
 
     # Define the loss and optimization process
     if manager == "regression":
+    
         model_loss = tf.losses.mean_squared_error(labels = Y, predictions = pred)
         tf.summary.scalar("MSE", model_loss)
+        
         perf_op = model_loss
+        smaller_is_better = True
+
     elif manager == "binary_classification":
+    
         model_loss = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(labels = Y, logits = pred))
         tf.summary.scalar("Cross-entropy:", model_loss)
+        
         _, perf_op = tf.metrics.accuracy(labels = Y, predictions = tf.round(tf.nn.sigmoid(pred)))
         tf.summary.scalar("Accuracy:", perf_op)
+        smaller_is_better = False
+
     elif manager in {"hospital_readmission", "support2"}:
+    
         model_loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels = Y, logits = pred))
         tf.summary.scalar("Cross-entropy", model_loss)
+        
         _, perf_op = tf.metrics.accuracy(labels = tf.argmax(Y, 1), predictions = tf.argmax(pred, 1))
         tf.summary.scalar("Accuracy", perf_op)
+        smaller_is_better = False
 
     if regularizer is None:
         loss_op = model_loss
@@ -115,11 +126,18 @@ def eval(manager, source,
     # Train the model
     init = [tf.global_variables_initializer(), tf.local_variables_initializer()]
 
-    # We keep 1 model with the best loss.
     saver = tf.train.Saver(max_to_keep = 1)
-    best_acc = 0.
-    best_loss = np.inf
+
+    if stop_on_loss: # Stop on validation loss function
+        best_loss = np.inf
+    else: # Stop on the validation performance
+        if smaller_is_better:
+            best_perf = np.inf
+        else:
+            best_perf = 0.0
+
     best_epoch = 0
+
     with tf.Session(config = tf_config) as sess:
         train_writer = tf.summary.FileWriter("train", sess.graph)
         val_writer = tf.summary.FileWriter("val")
@@ -146,22 +164,33 @@ def eval(manager, source,
                 train_writer.add_summary(summary, epoch)
 
                 dict = data.eval_feed(val = True)
-                summary, val_perf = sess.run([summary_op, perf_op], feed_dict = dict)
-                val_writer.add_summary(summary, epoch)
-
-                if manager == "regression":
-                    if val_perf < best_loss:
+                
+                if stop_on_loss:
+                    summary, val_loss = sess.run([summary_op, loss_op], feed_dict = dict)
+                    
+                    if val_loss < best_loss:
                         print(os.getcwd(), " ", epoch, " ", val_perf)
                         best_loss = val_perf
                         best_epoch = epoch
                         saver.save(sess, "./model.cpkt")
-                elif manager in {"binary_classification", "hospital_readmission", "support2"}:
-                    # Save best model
-                    if val_perf > best_acc:
+                
+                else:
+                    summary, val_perf = sess.run([summary_op, perf_op], feed_dict = dict)
+                    
+                    if smaller_is_better and val_perf < best_perf:
+                        progress = True
+                    elif not smaller_is_better and val_perf > best_perf:
+                        progress = True
+                    else:
+                        progress = False
+
+                    if progress:
                         print(os.getcwd(), " ", epoch, " ", val_perf)
-                        best_acc = val_perf
+                        best_perf = val_perf
                         best_epoch = epoch
                         saver.save(sess, "./model.cpkt")
+        
+                val_writer.add_summary(summary, epoch)
 
             epoch += 1
 
@@ -182,6 +211,8 @@ def eval(manager, source,
 
         if evaluate_explanation:
             wrapper = Wrapper(sess, pred, X)
+
+            out["variance"] = metrics_variance(wrapper, data.X_test).tolist()
 
             print(os.getcwd(), " MAPLE")
             maple_standard_metric, maple_causal_metric, maple_stability_metric = metrics_maple(wrapper, data.X_train, data.X_val, data.X_test)
