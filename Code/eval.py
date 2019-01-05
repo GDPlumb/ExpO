@@ -169,8 +169,8 @@ def eval(manager, source,
                     summary, val_loss = sess.run([summary_op, loss_op], feed_dict = dict)
                     
                     if val_loss < best_loss:
-                        print(os.getcwd(), " ", epoch, " ", val_perf)
-                        best_loss = val_perf
+                        print(os.getcwd(), " ", epoch, " ", val_loss)
+                        best_loss = val_loss
                         best_epoch = epoch
                         saver.save(sess, "./model.cpkt")
                 
