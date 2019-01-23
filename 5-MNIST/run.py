@@ -13,6 +13,8 @@ import sys
 sys.path.insert(0, os.path.join(os.getcwd(), "../Code/"))
 from Models import CNN
 
+from tqdm import tqdm
+
 out = open("results.txt", "w")
 
 def eval(
@@ -105,7 +107,7 @@ def eval(
         sess.run(init)
 
         total_batch = int(len(mnist.train.labels) / batch_size)
-        for epoch in range(epochs):
+        for epoch in tqdm(range(epochs)):
             for i in range(total_batch):
                 batch_x, batch_y = mnist.train.next_batch(batch_size = batch_size)
                 sess.run(train_op, feed_dict = {X: batch_x, Y: batch_y})
@@ -123,25 +125,48 @@ def eval(
         out.flush()
 
         # Sanity check that the explanations look reasonable
-        x = mnist.test.images[0]
+        n = 5
+        num_pert = 100
+        x = mnist.test.images[:n]
 
-        plt.imshow(np.reshape(x, (28,28)), cmap = "gray")
+        plt.imshow(np.reshape(x, (n * 28,28)), cmap = "gray")
         plt.savefig(name + "_original.jpeg")
         plt.close()
         
-        m = sess.run(sm_reg, {X: np.expand_dims(x, 0)})
+ 
+        def scale(input):
+            input -= np.mean(input)
+            input /= (np.std(input) + 1e-5)
+            input *= 0.2
+            input += 0.5
+            input = np.clip(input, 0, 1)
+            return input
+            
+        m = sess.run(sm_reg, {X: x})
+        m = scale(m)
+
+        m = np.reshape(m, (n * 28, 28))
         
-        '''
-        m -= np.mean(m)
-        m /= (np.std(m) + 1e-5)
-        m *= 0.1
-        m += 0.5
-        m = np.clip(m, 0, 1)
-        '''
-        m = np.reshape(m, (28, 28))
-        
-        plt.imshow(np.reshape(m, (28,28)), cmap = "jet")
+        plt.imshow(m, cmap = "jet")
         plt.savefig(name + "_explanation.jpeg")
+        plt.close()
+
+        m = np.zeros((n, 784))
+        for i in range(n):
+            x_pert = np.zeros((num_pert, 784))
+            for j in range(num_pert):
+                x_pert[j, :] = x[i] + np.random.uniform(low = -1.0 * pert_range, high = pert_range, size = (1,784))
+
+            m_avg = sess.run(sm_reg, {X: x_pert})
+            m_avg = np.squeeze(m_avg) #Remove the gradient first dim and the channel dim
+            m_avg = np.mean(m_avg, axis = 0)
+
+            m_avg = scale(m_avg)
+            
+            m[i, :] = np.reshape(m_avg, (1, 784))
+
+        plt.imshow(np.reshape(m, (n * 28,28)), cmap = "jet")
+        plt.savefig(name + "_averaged_explanation.jpeg")
         plt.close()
 
 print("Unregularized Model", file = out)

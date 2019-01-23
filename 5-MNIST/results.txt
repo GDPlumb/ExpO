@@ -1,10 +1,10 @@
 Unregularized Model
 Final Test Accuracy
-0.9875375
+0.9882603
 Explanation MSE
-8.312717
+6.940439
 Regularized Model
 Final Test Accuracy
-0.99021083
+0.9905634
 Explanation MSE
-0.00076319143
+0.000777442
