@@ -18,7 +18,8 @@ DATASET_PATH = os.path.join(os.getcwd(), "../Datasets/")
 datasets = ["autompgs", "communities", "day", "happiness", "housing", "music", "winequality-red"]
 depths = [1, 2, 3]
 sizes = [100, 150, 200, 250, 300]
-rates = [0.001]
+rates = [0.0001]
+regs = [2.5e3, 5e3, 7.5e3, 1e4, 2.5e4, 5e4, 7.5e4]
 
 # Run function
 def run_fn(args, evaluate_explanation = True):
@@ -30,8 +31,9 @@ def run_fn(args, evaluate_explanation = True):
     depth = args[2]
     size = args[3]
     rate = args[4]
+    reg = args[5]
 
-    name = args2name(dataset, trial, depth, size, rate)
+    name = args2name(dataset, trial, depth, size, rate, reg)
 
     cwd = os.getcwd()
 
@@ -42,10 +44,11 @@ def run_fn(args, evaluate_explanation = True):
     source =  DATASET_PATH + dataset + ".csv"
     shape = [size] * depth
     out = eval(manager, source,
-               hidden_layer_sizes = shape,
-               learning_rate = rate,
-               evaluate_explanation = evaluate_explanation,
-               stop_on_loss = True)
+           hidden_layer_sizes = shape,
+           learning_rate = rate,
+           regularizer = "Causal1D", c = reg,
+           evaluate_explanation = evaluate_explanation,
+           stop_on_loss = True)
 
     with open("out.json", "w") as f:
         json.dump(out, f)
@@ -57,8 +60,8 @@ def run_fn_search(*args):
 
 run_search(run_fn_search = run_fn_search, n_search = 1, lower_is_better = True,
             run_search = True, process_search = True,
-            run_fn_final = run_fn, n_final = 10,
+            run_fn_final = run_fn, n_final = 4,
             run_final = True, process_final = True,
             datasets = datasets, depths = depths, sizes = sizes, rates = rates,
-            regularized = False, regs = None,
+            regularized = True, regs = regs,
             num_processes = 4)

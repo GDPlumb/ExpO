@@ -39,7 +39,7 @@ class DataManager():
             batch_x_reg, batch_y_reg = self.reg_batch_manager.next_batch(self.reg_batch_size)
             return {self.X: batch_x, self.Y: batch_y, self.X_reg: batch_x_reg}
 
-    def eval_feed(self, val = False, scale = 1.0):
+    def eval_feed(self, val = False, scale = 0.125):
         if val:
             X_eval = self.X_val
             y_eval = self.y_val

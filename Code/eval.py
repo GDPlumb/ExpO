@@ -5,15 +5,15 @@ import tensorflow as tf
 
 from ExplanationMetrics import Wrapper, metrics_maple, metrics_lime, metrics_variance
 from Models import MLP
-from Regularizers import Regularizer
+from Regularizers import Regularizer, Regularizer_1D
 
 def eval(manager, source,
          # Network parameters
-         hidden_layer_sizes = [32], learning_rate = 0.001,
+         hidden_layer_sizes = [32], learning_rate = 0.0001,
          # Regularizer parameters
          regularizer = None, c = 1.0,
          # Training parameters
-         batch_size = 32, reg_batch_size = 4, stopping_epochs = 500, min_epochs = 1000, stop_on_loss = False,
+         batch_size = 128, reg_batch_size = 16, stopping_epochs = 100, min_epochs = 500, stop_on_loss = False,
          # Explanation evaluation metrics
          evaluate_explanation = True):
 
@@ -50,11 +50,17 @@ def eval(manager, source,
     n_out = data.y_train.shape[1]
 
     # Regularizer Parameters
-    if regularizer is not None:
+    if regularizer == "Causal":
         # Weight of the regularization term in the loss function
         c = tf.constant(c)
         # Number of neighbors to hallucinate per point
         num_samples = np.max((20, np.int(2 * n_input)))
+    if regularizer == "Causal1D":
+        # Weight of the regularization term in the loss function
+        c = tf.constant(c)
+        # Number of neighbors to hallucinate per point
+        num_samples = 10
+
 
     # Network Parameters
     shape = [n_input]
@@ -82,6 +88,9 @@ def eval(manager, source,
     # Build the regularizer
     if regularizer == "Causal":
         regularizer = Regularizer(network.model, n_input, num_samples)
+        reg = regularizer.causal(X_reg)
+    elif regularizer == "Causal1D":
+        regularizer = Regularizer_1D(network.model, n_input, num_samples)
         reg = regularizer.causal(X_reg)
 
     # Define the loss and optimization process
@@ -115,7 +124,7 @@ def eval(manager, source,
         loss_op = model_loss
     else:
         loss_op = model_loss + c * reg
-        tf.summary.scalar("Regularizer", reg)
+        tf.summary.scalar("Regularizer", c * reg)
     tf.summary.scalar("Loss", loss_op)
 
     summary_op = tf.summary.merge_all()
@@ -158,7 +167,7 @@ def eval(manager, source,
                 sess.run(train_op, feed_dict = dict)
 
             # Run model metrics
-            if epoch % 10 == 0:
+            if epoch % 1 == 0:
                 dict = data.eval_feed()
                 summary = sess.run(summary_op, feed_dict = dict)
                 train_writer.add_summary(summary, epoch)

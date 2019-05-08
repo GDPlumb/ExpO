@@ -3,6 +3,7 @@ import numpy as np
 import os
 import pandas as pd
 from sklearn.ensemble import RandomForestRegressor
+from sklearn.tree import DecisionTreeRegressor
 from sklearn.linear_model import LinearRegression
 from sklearn.metrics import mean_squared_error
 import sys
@@ -33,11 +34,13 @@ def eval(source):
         def predict_index(self, x):
             return np.squeeze(self.pred(x)[:, self.index])
 
-    for name in ["lr", "rf"]:
+    for name in ["lr", "dt"]:
         if name == "lr":
             model = LinearRegression()
         elif name == "rf":
             model = RandomForestRegressor(n_estimators = 100)
+        elif name == "dt":
+            model = DecisionTreeRegressor(min_samples_split = 10)
 
         model.fit(data.X_train, data.y_train)
 

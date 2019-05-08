@@ -1,5 +1,6 @@
 
 import json
+import numpy as np
 import os
 import sys
 
@@ -22,6 +23,9 @@ regs = [2.5e3, 5e3, 7.5e3, 1e4, 2.5e4, 5e4, 7.5e4]
 
 # Run function
 def run_fn(args, evaluate_explanation = True):
+
+    np.random.seed()
+
     dataset = args[0]
     trial = args[1]
     depth = args[2]
