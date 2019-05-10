@@ -1,3 +1,4 @@
+.DS_Store
 *.AppleDouble
 *__pycache__
 
@@ -21,3 +22,6 @@ COMPAS/*
 # Sync
 sync
 .sync-exclude
+
+# The dataset is large
+Datasets/YearPredictionMSD/
