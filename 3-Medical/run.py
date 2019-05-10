@@ -1,5 +1,6 @@
 
 import json
+import numpy as np
 import os
 import sys
 
@@ -24,6 +25,9 @@ rates = [0.001]
 
 # Run function
 def run_fn(args, evaluate_explanation = True):
+
+    np.random.seed()
+
     dataset = args[0]
     trial = args[1]
     depth = args[2]

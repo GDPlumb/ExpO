@@ -49,7 +49,7 @@ def run_fn(args, evaluate_explanation = True):
     out = eval(manager, source,
            hidden_layer_sizes = shape,
            learning_rate = rate,
-           regularizer = "Causal", c = reg,
+           regularizer = "Causal1D", c = reg,
            evaluate_explanation = evaluate_explanation,
            stop_on_loss = True)
 
