@@ -2,17 +2,18 @@
 import tensorflow as tf
 
 class Regularizer():
-    def __init__(self, model, n_input, num_samples):
+    def __init__(self, model, n_input, num_samples, stddev = 0.5):
         self.model = model
         self.n_input = n_input
         self.num_samples = num_samples
+        self.stddev = stddev
     
     def neighborhood(self, x):
         num_samples = self.num_samples
         n_input = self.n_input
         with tf.name_scope("GenerateNeighborhood") as scope:
             x_expanded = tf.reshape(tf.tile(x, [num_samples]), [num_samples, n_input])
-            noise = tf.random_normal([num_samples, n_input], stddev = 0.1)
+            noise = tf.random_normal([num_samples, n_input], stddev = self.stddev)
             constant_term = tf.ones([num_samples, 1])
             return tf.stop_gradient(tf.concat([x_expanded + noise, constant_term], 1))
 
@@ -44,10 +45,11 @@ class Regularizer():
             return tf.reduce_mean(tf.map_fn(compute_mse, x))
 
 class Regularizer_1D():
-    def __init__(self, model, n_input, num_samples):
+    def __init__(self, model, n_input, num_samples, stddev = 0.5):
         self.model = model
         self.n_input = n_input
         self.num_samples = num_samples
+        self.stddev = stddev
     
     def neighborhood(self, x):
         num_samples = self.num_samples
@@ -55,7 +57,7 @@ class Regularizer_1D():
         with tf.name_scope("GenerateNeighborhood") as scope:
             x_expanded = tf.reshape(tf.tile(x, [num_samples]), [num_samples, n_input]) # Create 'num_samples' copies of 'x' in one batch
             dim = tf.random_uniform(shape = [1], minval = 0, maxval = n_input, dtype = tf.int32)[0] # Choose a random dimension to regularize
-            noise = tf.random_normal(shape = [num_samples, 1], stddev = 0.1) # Generate the perturbations
+            noise = tf.random_normal(shape = [num_samples, 1], stddev = self.stddev) # Generate the perturbations
             noise_padded = tf.pad(noise, [[0,0], [dim, n_input - dim - 1]]) # Pad the perturbations such that they correspond to the chosen random dimension
             return x_expanded + noise_padded, dim
 

@@ -13,7 +13,7 @@ def eval(manager, source,
          # Regularizer parameters
          regularizer = None, c = 1.0,
          # Training parameters
-         batch_size = 128, reg_batch_size = 16, stopping_epochs = 20, min_epochs = 50, stop_on_loss = False,
+         batch_size = 128, reg_batch_size = 16, stopping_epochs = 50, min_epochs = 50, stop_on_loss = False,
          # Explanation evaluation metrics
          evaluate_explanation = True):
 
@@ -61,7 +61,7 @@ def eval(manager, source,
         # Weight of the regularization term in the loss function
         c = tf.constant(c)
         # Number of neighbors to hallucinate per point
-        num_samples = 10
+        num_samples = 20
 
 
     # Network Parameters
