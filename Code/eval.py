@@ -13,7 +13,7 @@ def eval(manager, source,
          # Regularizer parameters
          regularizer = None, c = 1.0,
          # Training parameters
-         batch_size = 128, reg_batch_size = 16, stopping_epochs = 100, min_epochs = 500, stop_on_loss = False,
+         batch_size = 128, reg_batch_size = 16, stopping_epochs = 20, min_epochs = 50, stop_on_loss = False,
          # Explanation evaluation metrics
          evaluate_explanation = True):
 
@@ -33,6 +33,8 @@ def eval(manager, source,
         from MedicalData import HospitalReadmissionDataManager as DataManager
     elif manager == "support2":
         from MedicalData import Support2DataManager as DataManager
+    elif manager == "msd":
+        from MillionSongData import YearPredictionMSDDataManager as DataManager
     else:
         raise ValueError("Unknown manager: %s" % manager)
 
@@ -94,7 +96,7 @@ def eval(manager, source,
         reg = regularizer.causal(X_reg)
 
     # Define the loss and optimization process
-    if manager == "regression":
+    if manager in {"regression", "msd"}:
     
         model_loss = tf.losses.mean_squared_error(labels = Y, predictions = pred)
         tf.summary.scalar("MSE", model_loss)
@@ -154,6 +156,7 @@ def eval(manager, source,
         sess.run(init)
 
         epoch = 0
+        total_batch = int(n / batch_size)
         while True:
 
             # Stopping condition
@@ -161,18 +164,16 @@ def eval(manager, source,
                 break
 
             # Run a training epoch
-            total_batch = int(n / batch_size)
             for i in range(total_batch):
                 dict = data.train_feed()
-                sess.run(train_op, feed_dict = dict)
+                summary, _ = sess.run([summary_op, train_op], feed_dict = dict)
+                train_writer.add_summary(summary, epoch * total_batch + i)
 
             # Run model metrics
             if epoch % 1 == 0:
-                dict = data.eval_feed()
-                summary = sess.run(summary_op, feed_dict = dict)
-                train_writer.add_summary(summary, epoch)
+                
 
-                dict = data.eval_feed(val = True)
+                dict = data.eval_feed()
                 
                 if stop_on_loss:
                     summary, val_loss = sess.run([summary_op, loss_op], feed_dict = dict)
@@ -199,7 +200,7 @@ def eval(manager, source,
                         best_epoch = epoch
                         saver.save(sess, "./model.cpkt")
         
-                val_writer.add_summary(summary, epoch)
+                val_writer.add_summary(summary, (epoch + 1) * total_batch)
 
             epoch += 1
 

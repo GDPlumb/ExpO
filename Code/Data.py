@@ -39,22 +39,18 @@ class DataManager():
             batch_x_reg, batch_y_reg = self.reg_batch_manager.next_batch(self.reg_batch_size)
             return {self.X: batch_x, self.Y: batch_y, self.X_reg: batch_x_reg}
 
-    def eval_feed(self, val = False, scale = 0.125):
-        if val:
-            X_eval = self.X_val
-            y_eval = self.y_val
-        else:
-            X_eval = self.X_train
-            y_eval = self.y_train
-        indices = np.random.choice(X_eval.shape[0], np.int(scale * self.train_batch_size), replace = False)
-        batch_x = X_eval[indices]
-        batch_y = y_eval[indices]
+    def eval_feed(self, val = False, scale = 0.1):
+    
+        X_eval = self.X_val
+        n = X_eval.shape[0]
+        y_eval = self.y_val
+
         if self.reg_batch_size == None:
-            return {self.X: batch_x, self.Y: batch_y}
+            return {self.X: X_eval, self.Y: y_eval}
         else:
-            indices_reg = np.random.choice(X_eval.shape[0], np.int(scale * self.reg_batch_size), replace = False)
+            indices_reg = np.random.choice(n, np.int(scale * n), replace = False)
             batch_x_reg = X_eval[indices_reg]
-            return {self.X: batch_x, self.Y: batch_y, self.X_reg: batch_x_reg}
+            return {self.X: X_eval, self.Y: y_eval, self.X_reg: batch_x_reg}
 
     def load_data(self):
         return pd.read_csv(self.source, header = None).dropna()
