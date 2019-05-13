@@ -15,7 +15,7 @@ os.environ["CUDA_VISIBLE_DEVICES"]="-1"
 DATASET_PATH = os.path.join(os.getcwd(), "../Datasets/")
 
 # Search Space
-datasets = ["autompgs", "communities", "day", "happiness", "housing", "music", "winequality-red"]
+datasets = ["autompgs", "communities", "day", "housing", "music", "winequality-red"]
 depths = [1, 2, 3]
 sizes = [100, 150, 200, 250, 300]
 rates = [0.001]
@@ -55,10 +55,10 @@ def run_fn(args, evaluate_explanation = True):
 def run_fn_search(*args):
     return run_fn(*args, evaluate_explanation = False)
 
-run_search(run_fn_search = run_fn_search, n_search = 1, lower_is_better = True,
+run_search(run_fn_search = run_fn_search, n_search = 2, lower_is_better = True,
             run_search = True, process_search = True,
-            run_fn_final = run_fn, n_final = 10,
+            run_fn_final = run_fn, n_final = 5,
             run_final = True, process_final = True,
             datasets = datasets, depths = depths, sizes = sizes, rates = rates,
             regularized = False, regs = None,
-            num_processes = 4)
+            num_processes = 1)
