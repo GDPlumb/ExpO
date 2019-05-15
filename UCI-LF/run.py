@@ -19,7 +19,7 @@ datasets = ["autompgs", "communities", "day", "housing", "music", "winequality-r
 depths = [1, 2, 3]
 sizes = [100, 150, 200, 250, 300]
 rates = [0.001]
-regs = [0.5, 1.0, 2.0, 4.0]
+regs = [0.1, 1.0, 10.0, 100.0]
 
 # Run function
 def run_fn(args, evaluate_explanation = True):
