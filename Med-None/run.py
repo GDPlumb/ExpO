@@ -19,9 +19,9 @@ DATASET_PATHS = {
 
 # Search Space
 datasets = ["support2"] #, "hospital_readmission"]
-depths = [1, 2, 3]
-sizes = [100, 150, 200, 250, 300]
-rates = [0.001]
+depths = [3,4,5]
+sizes = [300,400,500]
+rates = [0.01]
 
 # Run function
 def run_fn(args, evaluate_explanation = True):
@@ -48,7 +48,7 @@ def run_fn(args, evaluate_explanation = True):
                hidden_layer_sizes = shape,
                learning_rate = rate,
                evaluate_explanation = evaluate_explanation,
-               stop_on_loss = True)
+               stop_on_loss = False)
 
     with open("out.json", "w") as f:
         json.dump(out, f)
@@ -64,4 +64,4 @@ run_search(run_fn_search = run_fn_search, n_search = 1, lower_is_better = False,
             run_final = True, process_final = True,
             datasets = datasets, depths = depths, sizes = sizes, rates = rates,
             regularized = False, regs = None,
-            num_processes = 4)
+            num_processes = 1)
