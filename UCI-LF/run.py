@@ -19,7 +19,7 @@ datasets = ["autompgs", "communities", "day", "housing", "music", "winequality-r
 depths = [1, 2, 3]
 sizes = [100, 150, 200, 250, 300]
 rates = [0.001]
-regs = [0.1, 1.0, 10.0, 100.0]
+regs = [0.05, 0.01, 0.005, 0.001, 0.0005]
 
 # Run function
 def run_fn(args, evaluate_explanation = True):
@@ -58,10 +58,10 @@ def run_fn(args, evaluate_explanation = True):
 def run_fn_search(*args):
     return run_fn(*args, evaluate_explanation = False)
 
-run_search(run_fn_search = run_fn_search, n_search = 2, lower_is_better = True,
+run_search(run_fn_search = run_fn_search, n_search = 5, lower_is_better = True,
             run_search = True, process_search = True,
-            run_fn_final = run_fn, n_final = 10,
+            run_fn_final = run_fn, n_final = 20,
             run_final = True, process_final = True,
             datasets = datasets, depths = depths, sizes = sizes, rates = rates,
             regularized = True, regs = regs,
-            num_processes = 1)
+            num_processes = 8)
