@@ -58,8 +58,8 @@ def eval(manager, source,
         # Number of neighbors to hallucinate per point
         num_samples = np.max((20, np.int(2 * n_input)))
     if regularizer == "Causal1D":
-        # Weight of the regularization term in the loss function
-        c = tf.constant(c)
+        # Weight of the regularization term in the loss function (will be set later)
+        weight = tf.Variable(0.0, trainable = False)
         # Number of neighbors to hallucinate per point
         num_samples = 20
 
@@ -125,8 +125,8 @@ def eval(manager, source,
     if regularizer is None:
         loss_op = model_loss
     else:
-        loss_op = model_loss + c * reg
-        tf.summary.scalar("Regularizer", c * reg)
+        loss_op = model_loss + weight * reg
+        tf.summary.scalar("Regularizer", weight * reg)
     tf.summary.scalar("Loss", loss_op)
 
     summary_op = tf.summary.merge_all()
@@ -154,6 +154,11 @@ def eval(manager, source,
         val_writer = tf.summary.FileWriter("val")
 
         sess.run(init)
+        
+        #Update the regularization weight
+        dict = data.eval_feed()
+        ml_init, r_init = sess.run([model_loss, reg], feed_dict = dict)
+        sess.run(weight.assign(c * ml_init / r_init))
 
         epoch = 0
         total_batch = int(n / batch_size)
