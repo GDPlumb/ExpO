@@ -54,7 +54,7 @@ def eval(manager, source,
     # Regularizer Parameters
     if regularizer == "Causal":
         # Weight of the regularization term in the loss function
-        c = tf.constant(c)
+        weight = tf.Variable(0.0, trainable = False)
         # Number of neighbors to hallucinate per point
         num_samples = np.max((20, np.int(2 * n_input)))
     if regularizer == "Causal1D":
@@ -155,10 +155,10 @@ def eval(manager, source,
 
         sess.run(init)
         
-        #Update the regularization weight
-        dict = data.eval_feed()
-        ml_init, r_init = sess.run([model_loss, reg], feed_dict = dict)
-        sess.run(weight.assign(c * ml_init / r_init))
+        if regularizer is not None: #Update the regularization weight
+            dict = data.eval_feed()
+            ml_init, r_init = sess.run([model_loss, reg], feed_dict = dict)
+            sess.run(weight.assign(c * ml_init / r_init))
 
         epoch = 0
         total_batch = int(n / batch_size)

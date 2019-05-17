@@ -61,4 +61,4 @@ run_search(run_fn_search = run_fn_search, n_search = 5, lower_is_better = True,
             run_final = True, process_final = True,
             datasets = datasets, depths = depths, sizes = sizes, rates = rates,
             regularized = False, regs = None,
-            num_processes = 8)
+            num_processes = 4)
