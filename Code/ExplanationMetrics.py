@@ -8,7 +8,7 @@ from SLIM import SLIM as MAPLE
 num_perturbations = 5
 
 def generate_neighbor(x):
-    return x + 0.25 * np.random.normal(loc=0.0, scale=1.0, size = x.shape)
+    return x + 0.1 * np.random.normal(loc=0.0, scale=1.0, size = x.shape)
 
 # Wrapper for TF models to make prediction easy
 class Wrapper():

@@ -2,7 +2,7 @@
 import tensorflow as tf
 
 class Regularizer():
-    def __init__(self, model, n_input, num_samples, stddev = 0.5):
+    def __init__(self, model, n_input, num_samples, stddev = 0.1):
         self.model = model
         self.n_input = n_input
         self.num_samples = num_samples
@@ -45,7 +45,7 @@ class Regularizer():
             return tf.reduce_mean(tf.map_fn(compute_mse, x))
 
 class Regularizer_1D():
-    def __init__(self, model, n_input, num_samples, stddev = 0.5):
+    def __init__(self, model, n_input, num_samples, stddev = 0.1):
         self.model = model
         self.n_input = n_input
         self.num_samples = num_samples
