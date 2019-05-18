@@ -70,9 +70,10 @@ def run_search(run_fn_search = None, n_search = 1, lower_is_better = True,
         for dataset in datasets:
 
             list_means = {}
-            c = config_list[dataset]
 
             if source is not None:
+                c = config_list[dataset]
+
                 for reg in regs:
                     mean = 0.0
                     for trial in trials:
