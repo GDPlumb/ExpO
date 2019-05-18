@@ -9,7 +9,7 @@ from eval import eval
 from run_search import run_search, args2name
 
 # The networks are small enough that training is faster on CPU
-os.environ["CUDA_VISIBLE_DEVICES"]="-1"
+#os.environ["CUDA_VISIBLE_DEVICES"]="-1"
 
 # Location of Datasets
 DATASET_PATHS = {
@@ -19,10 +19,10 @@ DATASET_PATHS = {
 
 # Search Space
 datasets = ["support2"] #, "hospital_readmission"]
-depths = [3,4,5]
-sizes = [300,400,500]
+depths = [3]
+sizes = [400]
 rates = [0.01]
-regs = [5.0]
+regs = [0.005, 0.001]
 
 # Run function
 def run_fn(args, evaluate_explanation = True):
@@ -61,10 +61,10 @@ def run_fn(args, evaluate_explanation = True):
 def run_fn_search(*args):
     return run_fn(*args, evaluate_explanation = False)
 
-run_search(run_fn_search = run_fn_search, n_search = 1, lower_is_better = False,
+run_search(run_fn_search = run_fn_search, n_search = 5, lower_is_better = False,
             run_search = True, process_search = True,
             run_fn_final = run_fn, n_final = 10,
             run_final = True, process_final = True,
             datasets = datasets, depths = depths, sizes = sizes, rates = rates,
             regularized = True, regs = regs,
-            num_processes = 1)
+            num_processes = 4)
