@@ -1,4 +1,5 @@
 
+from collections import OrderedDict
 import numpy as np
 import os
 import tensorflow as tf
@@ -217,7 +218,7 @@ def eval(manager, source,
         ###
 
         saver.restore(sess, "./model.cpkt")
-        out = {}
+        out = OrderedDict()
 
         # Evaluate Accuracy
         test_acc, test_pred = sess.run([perf_op, pred], feed_dict = {X: data.X_test, Y: data.y_test})
