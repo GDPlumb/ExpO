@@ -32,16 +32,28 @@ def run_search(run_fn_search = None, n_search = 1, lower_is_better = True,
                 run_search = True, process_search = True,
                 run_fn_final = None,  n_final = 1,
                 run_final = True, process_final = True,
-                datasets = None, depths = None, sizes = None, rates = None,
+                datasets = None, depths = None, sizes = None, rates = None, source = None,
                 regularized = False, regs = None,
                 num_processes = 1):
 
     if run_search or process_search:
         trials = list(range(n_search))
+    
+        if source is not None:
+            with open(source, "r") as f:
+                config_list = json.load(f)
 
     if run_search:
 
-        if regularized:
+        if source is not None:
+            configs = []
+            for dataset in datasets:
+                c = config_list[dataset]
+                for reg in regs:
+                    for trial in trials:
+                        args = [dataset, trial, c[0], c[1], c[2], reg]
+                        configs.append(args)
+        elif regularized:
             configs = itertools.product(datasets, trials, depths, sizes, rates, regs)
         else:
             configs = itertools.product(datasets, trials, depths, sizes, rates)
@@ -58,35 +70,49 @@ def run_search(run_fn_search = None, n_search = 1, lower_is_better = True,
         for dataset in datasets:
 
             list_means = {}
+            c = config_list[dataset]
 
-            for depth in depths:
-                for size in sizes:
-                    for rate in rates:
+            if source is not None:
+                for reg in regs:
+                    mean = 0.0
+                    for trial in trials:
+                        name = args2name(dataset, trial, c[0], c[1], c[2], reg)
+                        with open(name + "/out.json") as f:
+                            results = json.load(f)
+                        mean += results["test_acc"]
+                    mean /= len(trials)
+                    name = args2name(dataset, "_avg", c[0], c[1], c[2], reg)
+                    list_means[name] = mean
+            else:
 
-                        if regularized:
+                for depth in depths:
+                    for size in sizes:
+                        for rate in rates:
 
-                            for reg in regs:
+                            if regularized:
+
+                                for reg in regs:
+                                    mean = 0.0
+                                    for trial in trials:
+                                        name = args2name(dataset, trial, depth, size, rate, reg)
+                                        with open(name + "/out.json") as f:
+                                            results = json.load(f)
+                                        mean += results["test_acc"]
+                                    mean /= len(trials)
+                                    name = args2name(dataset, "_avg", depth, size, rate, reg)
+                                    list_means[name] = mean
+
+                            else:
+
                                 mean = 0.0
                                 for trial in trials:
-                                    name = args2name(dataset, trial, depth, size, rate, reg)
+                                    name = args2name(dataset, trial, depth, size, rate)
                                     with open(name + "/out.json") as f:
                                         results = json.load(f)
                                     mean += results["test_acc"]
                                 mean /= len(trials)
-                                name = args2name(dataset, "_avg", depth, size, rate, reg)
+                                name = args2name(dataset, "_avg", depth, size, rate)
                                 list_means[name] = mean
-
-                        else:
-
-                            mean = 0.0
-                            for trial in trials:
-                                name = args2name(dataset, trial, depth, size, rate)
-                                with open(name + "/out.json") as f:
-                                    results = json.load(f)
-                                mean += results["test_acc"]
-                            mean /= len(trials)
-                            name = args2name(dataset, "_avg", depth, size, rate)
-                            list_means[name] = mean
 
             agg[dataset] = list_means
 
