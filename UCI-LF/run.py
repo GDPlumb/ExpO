@@ -15,11 +15,8 @@ os.environ["CUDA_VISIBLE_DEVICES"]="-1"
 DATASET_PATH = os.path.join(os.getcwd(), "../Datasets/")
 
 # Search Space
-datasets = ["autompgs", "communities", "day", "housing", "music", "winequality-red"]
-depths = [1, 2, 3]
-sizes = [100, 150, 200, 250, 300]
-rates = [0.001]
-regs = [0.05, 0.01, 0.005, 0.001, 0.0005]
+datasets = ["autompgs","communities", "day", "housing", "music", "winequality-red"]
+regs = [0.1, 0.05, 0.01, 0.005, 0.001]
 
 # Run function
 def run_fn(args, evaluate_explanation = True):
@@ -58,10 +55,10 @@ def run_fn(args, evaluate_explanation = True):
 def run_fn_search(*args):
     return run_fn(*args, evaluate_explanation = False)
 
-run_search(run_fn_search = run_fn_search, n_search = 5, lower_is_better = True,
-            run_search = True, process_search = True,
+run_search(run_fn_search = run_fn_search, n_search = 10, lower_is_better = True,
+            run_search = False, process_search = False,
             run_fn_final = run_fn, n_final = 20,
-            run_final = True, process_final = True,
-            datasets = datasets, depths = depths, sizes = sizes, rates = rates,
+            run_final = False, process_final = True,
+            datasets = datasets, source = "../UCI-None/config.json", #depths = depths, sizes = sizes, rates = rates,
             regularized = True, regs = regs,
-            num_processes = 4)
+            num_processes = 5)
