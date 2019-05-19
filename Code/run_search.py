@@ -28,13 +28,17 @@ def name2args(name):
     else:
         return dataset, depth, size, rate
 
-def run_search(run_fn_search = None, n_search = 1, lower_is_better = True,
+def run_search(run_fn_search = None, n_search = 1, lower_is_better = True, gamma = 0.1,
                 run_search = True, process_search = True,
                 run_fn_final = None,  n_final = 1,
                 run_final = True, process_final = True,
                 datasets = None, depths = None, sizes = None, rates = None, source = None,
                 regularized = False, regs = None,
                 num_processes = 1):
+    
+    # gamma is the discount factor applied to slightly encourage more regularized models
+    if lower_is_better:
+        gamma *= -1.0
 
     if run_search or process_search:
         trials = list(range(n_search))
@@ -83,7 +87,7 @@ def run_search(run_fn_search = None, n_search = 1, lower_is_better = True,
                         mean += results["test_acc"]
                     mean /= len(trials)
                     name = args2name(dataset, "_avg", c[0], c[1], c[2], reg)
-                    list_means[name] = mean
+                    list_means[name] = mean + gamma * reg
             else:
 
                 for depth in depths:
@@ -101,7 +105,7 @@ def run_search(run_fn_search = None, n_search = 1, lower_is_better = True,
                                         mean += results["test_acc"]
                                     mean /= len(trials)
                                     name = args2name(dataset, "_avg", depth, size, rate, reg)
-                                    list_means[name] = mean
+                                    list_means[name] = mean + gamma * reg
 
                             else:
 
