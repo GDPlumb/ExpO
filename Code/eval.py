@@ -14,7 +14,7 @@ def eval(manager, source,
          # Regularizer parameters
          regularizer = None, c = 1.0,
          # Training parameters
-         batch_size = 128, reg_batch_size = 16, stopping_epochs = 50, min_epochs = 50, stop_on_loss = False,
+         batch_size = 128, reg_batch_size = 16, stopping_epochs = 50, min_epochs = 50, stop_on_loss = False, tol = 0.0,
          # Explanation evaluation metrics
          evaluate_explanation = True):
 
@@ -184,7 +184,7 @@ def eval(manager, source,
                 if stop_on_loss:
                     summary, val_loss = sess.run([summary_op, loss_op], feed_dict = dict)
                     
-                    if val_loss < best_loss:
+                    if val_loss < best_loss - tol:
                         print(os.getcwd(), " ", epoch, " ", val_loss)
                         best_loss = val_loss
                         best_epoch = epoch
@@ -193,9 +193,9 @@ def eval(manager, source,
                 else:
                     summary, val_perf = sess.run([summary_op, perf_op], feed_dict = dict)
                     
-                    if smaller_is_better and val_perf < best_perf:
+                    if smaller_is_better and val_perf < best_perf - tol:
                         progress = True
-                    elif not smaller_is_better and val_perf > best_perf:
+                    elif not smaller_is_better and val_perf > best_perf + tol:
                         progress = True
                     else:
                         progress = False
