@@ -9,7 +9,7 @@ from eval import eval
 from run_search import run_search, args2name
 
 # The networks are small enough that training is faster on CPU
-#os.environ["CUDA_VISIBLE_DEVICES"]="-1"
+os.environ["CUDA_VISIBLE_DEVICES"]="-1"
 
 # Location of Datasets
 DATASET_PATHS = {
@@ -21,7 +21,7 @@ DATASET_PATHS = {
 datasets = ["support2"] #, "hospital_readmission"]
 depths = [3,4,5]
 sizes = [300,400,500]
-rates = [0.01]
+rates = [0.025]
 
 # Run function
 def run_fn(args, evaluate_explanation = True):
@@ -48,7 +48,7 @@ def run_fn(args, evaluate_explanation = True):
                hidden_layer_sizes = shape,
                learning_rate = rate,
                evaluate_explanation = evaluate_explanation,
-               stop_on_loss = False)
+               stop_on_loss = False, tol = 5e-4)
 
     with open("out.json", "w") as f:
         json.dump(out, f)
@@ -64,4 +64,4 @@ run_search(run_fn_search = run_fn_search, n_search = 5, lower_is_better = False,
             run_final = True, process_final = True,
             datasets = datasets, depths = depths, sizes = sizes, rates = rates,
             regularized = False, regs = None,
-            num_processes = 4)
+            num_processes = 5)
