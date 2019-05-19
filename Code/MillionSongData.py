@@ -73,15 +73,49 @@ class YearPredictionMSDDataManager(DataManager):
     """
     N_TRAIN = 463715
     N_TEST = 51630
-
-    def load_normalize_data(self, valid_size=0.1, thresh=1e-10, seed=0):
+    
+    def load_normalize_data(self, valid_size=0.1, thresh=1e-10):
         train_path = os.path.join(self.source, "YearPredictionMSD_train.txt")
         test_path = os.path.join(self.source, "YearPredictionMSD_test.txt")
 
         # Load data.
         X_train, y_train = parse_file(train_path, self.N_TRAIN)
         X_test, y_test = parse_file(test_path, self.N_TEST)
+        
+        y_train = np.expand_dims(y_train, 1)
+        y_test = np.expand_dims(y_test, 1)
+        
+        # Split train into train and validation.
+        X_train, X_valid, y_train, y_valid = train_test_split(X_train, y_train, test_size = valid_size)
+        
+        # Normalize data.
+        train_mean = np.mean(X_train, axis = 0)
+        train_std = np.std(X_train, axis = 0)
+        
+        X_train = (X_train - train_mean) / train_std
+        X_valid = (X_valid - train_mean) / train_std
+        X_test = (X_test - train_mean) / train_std
+        
+        y_mean = np.mean(y_train)
+        y_std = np.std(y_train)
+        
+        y_train = (y_train - y_mean) / y_std
+        y_valid = (y_valid - y_mean) / y_std
+        y_test = (y_test - y_mean) / y_std
 
+        return X_train, y_train, X_valid, y_valid, X_test, y_test, np.append(train_mean, y_mean), np.append(train_std, y_std)
+
+    def load_normalize_data_alt(self, valid_size=0.1, thresh=1e-10, seed=0):
+        train_path = os.path.join(self.source, "YearPredictionMSD_train.txt")
+        test_path = os.path.join(self.source, "YearPredictionMSD_test.txt")
+
+        # Load data.
+        X_train, y_train = parse_file(train_path, self.N_TRAIN)
+        X_test, y_test = parse_file(test_path, self.N_TEST)
+        
+        y_train = np.expand_dims(y_train, 1)
+        y_test = np.expand_dims(y_test, 1)
+        
         # Normalize data.
         X_train, (X_mean, X_min, X_max) = scale_data_alt(X_train)
         X_test, _ = scale_data_alt(X_test, X_mean, X_max, X_min)
