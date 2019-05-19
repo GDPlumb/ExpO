@@ -1,4 +1,5 @@
 
+from collections import OrderedDict
 import itertools
 import json
 import numpy as np
@@ -69,8 +70,8 @@ def run_search(run_fn_search = None, n_search = 1, lower_is_better = True, gamma
 
     if process_search:
 
-        agg = {}
-        config = {}
+        agg = OrderedDict()
+        config = OrderedDict()
         for dataset in datasets:
 
             list_means = {}
