@@ -37,9 +37,9 @@ trials = list(range(10))
 
 configs = itertools.product(trials, regs)
 
-flag_run = True
-flag_agg = True
-flag_run_baselines = True
+flag_run = False
+flag_agg = False
+flag_run_baselines = False
 flag_plot = True
 
 # Run function
@@ -180,14 +180,19 @@ if flag_plot:
         lime.append(networks[key][1])
 
     for key in baselines.keys():
-        names.append(key)
+        if key == "lr":
+            names.append("linear regression")
+        elif key == "dt":
+            names.append("decision tree")
+        elif key == "rf":
+            names.append("random forest")
         acc.append(baselines[key][0])
         lime.append(baselines[key][1])
 
     plt.scatter(acc, lime)
     for i, label in enumerate(names):
         text = plt.annotate(label, (acc[i], lime[i]))
-        text.set_alpha(.6)
+        text.set_alpha(0.8)
     plt.xlabel("Predictive MSE")
     plt.ylabel("Lime Neighborhood Fidelity Metric")
     plt.savefig("plot.pdf")
