@@ -1,0 +1,2 @@
+,test_acc,variance,maple_standard_metric,maple_causal_metric,maple_stability_metric,lime_standard_metric,lime_causal_metric,lime_stability_metric
+support2,0.8345133543014527,[0.01373227 0.01372034],[0.01880682 0.0190724 ],[0.02623532 0.0261579 ],[0.23298852 0.24410052],[0.11492281 0.11365141],[0.11829168 0.11685206],[0.01511027 0.01513952]
