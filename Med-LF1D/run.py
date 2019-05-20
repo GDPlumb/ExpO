@@ -19,10 +19,7 @@ DATASET_PATHS = {
 
 # Search Space
 datasets = ["support2"] #, "hospital_readmission"]
-depths = [3,4,5]
-sizes = [300,400,500]
-rates = [0.01]
-regs = [0.05, 0.01, 0.005, 0.001, 0.0005]
+regs =  [0.001, 0.0005, 0.00025, 0.0001]
 
 # Run function
 def run_fn(args, evaluate_explanation = True):
@@ -51,7 +48,8 @@ def run_fn(args, evaluate_explanation = True):
            learning_rate = rate,
            regularizer = "Causal1D", c = reg,
            evaluate_explanation = evaluate_explanation,
-           stop_on_loss = False)
+           stop_on_loss = True, tol = 5e-4,
+           min_epochs = 10, stopping_epochs = 10)
 
     with open("out.json", "w") as f:
         json.dump(out, f)
@@ -61,10 +59,10 @@ def run_fn(args, evaluate_explanation = True):
 def run_fn_search(*args):
     return run_fn(*args, evaluate_explanation = False)
 
-run_search(run_fn_search = run_fn_search, n_search = 5, lower_is_better = False,
+run_search(run_fn_search = run_fn_search, n_search = 5, lower_is_better = False, gamma = 0.0,
             run_search = True, process_search = True,
             run_fn_final = run_fn, n_final = 10,
-            run_final = True, process_final = True,
-            datasets = datasets, depths = depths, sizes = sizes, rates = rates,
+            run_final = False, process_final = False,
+            datasets = datasets, source = "../Med-None/config.json",
             regularized = True, regs = regs,
             num_processes = 4)
