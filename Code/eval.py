@@ -12,11 +12,11 @@ def eval(manager, source,
          # Network parameters
          hidden_layer_sizes = [32], learning_rate = 0.0001,
          # Regularizer parameters
-         regularizer = None, c = 1.0,
+         regularizer = None, c = 1.0, stddev_reg = 0.1,
          # Training parameters
          batch_size = 128, reg_batch_size = 16, stopping_epochs = 50, min_epochs = 50, stop_on_loss = False, tol = 0.0,
          # Explanation evaluation metrics
-         evaluate_explanation = True):
+         evaluate_explanation = True, stddev_eval = 0.1):
 
     # Allow multiple sessions on a single GPU.
     tf_config = tf.ConfigProto()
@@ -90,10 +90,10 @@ def eval(manager, source,
 
     # Build the regularizer
     if regularizer == "Causal":
-        regularizer = Regularizer(network.model, n_input, num_samples)
+        regularizer = Regularizer(network.model, n_input, num_samples, stddev = stddev_reg)
         reg = regularizer.causal(X_reg)
     elif regularizer == "Causal1D":
-        regularizer = Regularizer_1D(network.model, n_input, num_samples)
+        regularizer = Regularizer_1D(network.model, n_input, num_samples, stddev = stddev_reg)
         reg = regularizer.causal(X_reg)
 
     # Define the loss and optimization process
@@ -228,17 +228,17 @@ def eval(manager, source,
         if evaluate_explanation:
             wrapper = Wrapper(sess, pred, X)
 
-            out["variance"] = metrics_variance(wrapper, data.X_test).tolist()
+            out["variance"] = metrics_variance(wrapper, data.X_test, stddev = stddev_eval).tolist()
 
             print(os.getcwd(), " MAPLE")
-            maple_standard_metric, maple_causal_metric, maple_stability_metric = metrics_maple(wrapper, data.X_train, data.X_val, data.X_test)
+            maple_standard_metric, maple_causal_metric, maple_stability_metric = metrics_maple(wrapper, data.X_train, data.X_val, data.X_test, stddev = stddev_eval)
 
             out["maple_standard_metric"] = maple_standard_metric.tolist()
             out["maple_causal_metric"] = maple_causal_metric.tolist()
             out["maple_stability_metric"] = maple_stability_metric.tolist()
 
             print(os.getcwd(), " LIME")
-            lime_standard_metric, lime_causal_metric, lime_stability_metric = metrics_lime(wrapper, data.X_train, data.X_test)
+            lime_standard_metric, lime_causal_metric, lime_stability_metric = metrics_lime(wrapper, data.X_train, data.X_test, stddev = stddev_eval)
 
             out["lime_standard_metric"] = lime_standard_metric.tolist()
             out["lime_causal_metric"] = lime_causal_metric.tolist()
