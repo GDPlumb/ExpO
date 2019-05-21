@@ -7,8 +7,8 @@ from SLIM import SLIM as MAPLE
 # Configure the Local Neighborhood
 num_perturbations = 5
 
-def generate_neighbor(x):
-    return x + 0.1 * np.random.normal(loc=0.0, scale=1.0, size = x.shape)
+def generate_neighbor(x, stddev = 0.1):
+    return x + stddev * np.random.normal(loc=0.0, scale=1.0, size = x.shape)
 
 # Wrapper for TF models to make prediction easy
 class Wrapper():
@@ -28,7 +28,7 @@ class Wrapper():
         return np.squeeze(self.sess.run(self.pred, feed_dict = {self.X: x})[:, self.index])
 
 # Evaluate MAPLE as a black-box explainer for this model
-def metrics_maple(model, X_train, X_val, X_test):
+def metrics_maple(model, X_train, X_val, X_test, stddev = 0.1):
 
     # Get the model predictions on data
     train_pred = model.predict(X_train)
@@ -64,7 +64,7 @@ def metrics_maple(model, X_train, X_val, X_test):
             standard_metric[i] += (e["pred"][0] - test_pred[j,i])**2
 
             for k in range(num_perturbations):
-                x_pert = generate_neighbor(x)
+                x_pert = generate_neighbor(x, stddev = stddev)
 
                 # Causal Metric
                 model_pred = model.predict_index(x_pert.reshape(1, d_in))
@@ -82,7 +82,7 @@ def metrics_maple(model, X_train, X_val, X_test):
     return standard_metric, causal_metric, stability_metric
 
 # Evaluate LIME as a black-box explainer for this model
-def metrics_lime(model, X_train, X_test):
+def metrics_lime(model, X_train, X_test, stddev = 0.1):
 
     # Get the model predictions on the test data
     test_pred = model.predict(X_test)
@@ -131,7 +131,7 @@ def metrics_lime(model, X_train, X_test):
             standard_metric[i] += (np.dot(np.insert(x, 0, 1), coefs) - test_pred[j,i])**2
 
             for k in range(num_perturbations):
-                x_pert = generate_neighbor(x)
+                x_pert = generate_neighbor(x, stddev = stddev)
 
                 # Causal Metric
                 model_pred = model.predict_index(x_pert.reshape(1, d_in))
@@ -154,7 +154,7 @@ This function is intended to check the variance of a learned model across the ne
 
 It also may help provide context to the other metrics
 '''
-def metrics_variance(model, X):
+def metrics_variance(model, X, stddev = 0.1):
 
     n_pert = 20
 
@@ -170,7 +170,7 @@ def metrics_variance(model, X):
 
         x_pert = np.zeros((n_pert, d))
         for j in range(n_pert):
-            x_pert[j, :] = generate_neighbor(x)
+            x_pert[j, :] = generate_neighbor(x, stddev = stddev)
 
         pred_pert = model.predict(x_pert)
 
