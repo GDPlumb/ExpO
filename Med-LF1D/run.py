@@ -60,9 +60,9 @@ def run_fn_search(*args):
     return run_fn(*args, evaluate_explanation = False)
 
 run_search(run_fn_search = run_fn_search, n_search = 5, lower_is_better = False, gamma = 0.0,
-            run_search = True, process_search = True,
+            run_search = False, process_search = False,
             run_fn_final = run_fn, n_final = 10,
-            run_final = False, process_final = False,
+            run_final = True, process_final = True,
             datasets = datasets, source = "../Med-None/config.json",
             regularized = True, regs = regs,
-            num_processes = 4)
+            num_processes = 2)
