@@ -16,7 +16,7 @@ DATASET_PATH = os.path.join(os.getcwd(), "../Datasets/")
 
 # Search Space
 datasets = ["autompgs","communities", "day", "housing", "music", "winequality-red"]
-regs = [0.1, 0.05, 0.01, 0.005, 0.001]
+regs = [0.1, 0.05, 0.025, 0.01, 0.005, 0.001]
 
 # Run function
 def run_fn(args, evaluate_explanation = True):
@@ -43,7 +43,7 @@ def run_fn(args, evaluate_explanation = True):
     out = eval(manager, source,
            hidden_layer_sizes = shape,
            learning_rate = rate,
-           regularizer = "Causal", c = reg,
+           regularizer = "Causal", c = reg, stddev_reg = 0.5,
            evaluate_explanation = evaluate_explanation,
            stop_on_loss = True)
 
@@ -61,4 +61,4 @@ run_search(run_fn_search = run_fn_search, n_search = 10, lower_is_better = True,
             run_final = False, process_final = True,
             datasets = datasets, source = "../UCI-None/config.json", #depths = depths, sizes = sizes, rates = rates,
             regularized = True, regs = regs,
-            num_processes = 4)
+            num_processes = 8)
