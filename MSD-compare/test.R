@@ -1,5 +1,5 @@
 data = as.matrix(read.csv("msd.csv"))
-n = 10
+n = 20
 
 t.test2 <- function(m1,m2,s1,s2,n1,n2,m0=0,equal.variance=FALSE)
 {
