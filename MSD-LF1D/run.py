@@ -16,9 +16,7 @@ DATASET_PATH = os.path.join(os.getcwd(), "../Datasets/YearPredictionMSD/")
 
 # Search Space
 datasets = ["msd"]
-depths = [1,2,3,4,5]
-sizes = [100,200,300,400,500]
-rates = [0.001]
+regs = [0.1, 0.05, 0.01, 0.005, 0.001]
 
 # Run function
 def run_fn(args, evaluate_explanation = True):
@@ -30,8 +28,9 @@ def run_fn(args, evaluate_explanation = True):
     depth = args[2]
     size = args[3]
     rate = args[4]
+    reg = args[5]
 
-    name = args2name(dataset, trial, depth, size, rate)
+    name = args2name(dataset, trial, depth, size, rate, reg)
 
     cwd = os.getcwd()
 
@@ -42,11 +41,12 @@ def run_fn(args, evaluate_explanation = True):
     source =  DATASET_PATH
     shape = [size] * depth
     out = eval(manager, source,
-               hidden_layer_sizes = shape,
-               learning_rate = rate,
-               evaluate_explanation = evaluate_explanation,
-               stop_on_loss = True,
-               min_epochs = 10, stopping_epochs = 10)
+           hidden_layer_sizes = shape,
+           learning_rate = rate,
+           regularizer = "Causal1D", c = reg,
+           evaluate_explanation = evaluate_explanation,
+           stop_on_loss = True,
+           min_epochs = 10, stopping_epochs = 10)
 
     with open("out.json", "w") as f:
         json.dump(out, f)
@@ -60,6 +60,6 @@ run_search(run_fn_search = run_fn_search, n_search = 10, lower_is_better = True,
             run_search = False, process_search = False,
             run_fn_final = run_fn, n_final = 20,
             run_final = True, process_final = True,
-            datasets = datasets, depths = depths, sizes = sizes, rates = rates,
-            regularized = False, regs = None,
+            datasets = datasets, source = "../MSD-None/config.json",
+            regularized = True, regs = regs,
             num_processes = 4)

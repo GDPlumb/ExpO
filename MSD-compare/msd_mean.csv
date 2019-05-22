@@ -1,0 +1,6 @@
+"","Unregularized","Regularized","Regularized1D"
+"Accuracy","0.583","0.55","0.566"
+"Variance","0.00915","0.00543","0.00557"
+"LIME-PF","0.116","0.0772","0.0645"
+"LIME-NF","0.117","0.0775","0.0655"
+"LIME-Stability","0.0368","0.0183","0.0175"
