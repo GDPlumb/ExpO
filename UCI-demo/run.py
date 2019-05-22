@@ -32,7 +32,7 @@ dataset = "housing"
 depth = 5
 size = 200
 rate = 0.001
-regs = [0.0, 0.0001, 0.001, 0.01, 0.1, 1.0]
+regs = [0.0, 0.0001, 0.001, 0.01, 0.1, 0.25]
 trials = list(range(10))
 
 configs = itertools.product(trials, regs)
@@ -190,8 +190,9 @@ if flag_plot:
         lime.append(baselines[key][1])
 
     plt.scatter(acc, lime)
+    plt.xlim(0.1, 0.5)
     for i, label in enumerate(names):
-        text = plt.annotate(label, (acc[i], lime[i]))
+        text = plt.annotate(label, (acc[i] + 0.0025, lime[i] + 0.0025), size = 11)
         text.set_alpha(0.8)
     plt.xlabel("Predictive MSE")
     plt.ylabel("Lime Neighborhood Fidelity Metric")
