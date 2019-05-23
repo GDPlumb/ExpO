@@ -36,12 +36,13 @@ rate = 0.001
 regs = [0.0, 0.0001, 0.001, 0.01, 0.1, 0.25]
 stddevs_eval = [0.1, 0.25, 0.5]
 stddevs_reg = [0.1, 0.25, 0.5]
-trials = list(range(10))
+trials = list(range(20))
 
 configs = itertools.product(trials, regs, stddevs_eval, stddevs_reg)
 
-flag_run = True
-flag_agg = True
+flag_run = False
+flag_agg = False
+flag_plot = True
 
 # Run function
 def run_fn(args):
@@ -104,3 +105,42 @@ if flag_agg:
 
     df = pd.DataFrame(out, columns = ["stddev_eval", "stddev_reg", "weight_reg", "mse", "lime"])
     df.to_csv("results.csv")
+
+if flag_plot:
+
+    data = pd.read_csv("results.csv").values
+    data = np.delete(data, 0, axis=1)
+
+    c = 0
+    for i in range(3): #stddev_eval
+    
+        for j in range(3): #stddev_reg
+        
+            plt.subplot(3,3, i * 3 + j + 1)
+            
+            if c == 0:
+                plt.title("Reg STD = " + str(data[c, 1]))
+                plt.ylabel("Eval STD = " + str(data[c, 0]))
+            elif c == 6 or c == 12:
+                plt.title("Reg STD = " + str(data[c, 1]))
+            elif c == 18 or c == 36:
+                plt.ylabel("Eval STD = " + str(data[c, 0]))
+
+            acc = []
+            lime = []
+            for k in range(6): #reg
+                acc.append(data[c, 3])
+                lime.append(data[c, 4])
+                c += 1
+
+            plt.scatter(acc, lime, s = 8)
+            for k in range(6):
+                text = plt.annotate("c="+str(regs[k]), (acc[k] + 0.0025, lime[k] + 0.0025), size = 6)
+            plt.xlim(0.12, 0.4)
+            plt.ylim(0.0, 0.17)
+
+            
+    plt.tight_layout()
+            
+    plt.savefig("plot.pdf")
+    plt.close()
