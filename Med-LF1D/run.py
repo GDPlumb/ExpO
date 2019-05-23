@@ -19,7 +19,7 @@ DATASET_PATHS = {
 
 # Search Space
 datasets = ["support2"] #, "hospital_readmission"]
-regs =  [0.001, 0.0005, 0.00025, 0.0001]
+regs = [0.1, 0.05, 0.025, 0.01, 0.005, 0.0025, 0.001]
 
 # Run function
 def run_fn(args, evaluate_explanation = True):
@@ -46,7 +46,7 @@ def run_fn(args, evaluate_explanation = True):
     out = eval(manager, source,
            hidden_layer_sizes = shape,
            learning_rate = rate,
-           regularizer = "Causal1D", c = reg,
+           regularizer = "Causal1D", c = reg, stddev_reg = 0.5,
            evaluate_explanation = evaluate_explanation,
            stop_on_loss = True, tol = 5e-4,
            min_epochs = 10, stopping_epochs = 10)
@@ -65,4 +65,4 @@ run_search(run_fn_search = run_fn_search, n_search = 5, lower_is_better = False,
             run_final = True, process_final = True,
             datasets = datasets, source = "../Med-None/config.json",
             regularized = True, regs = regs,
-            num_processes = 2)
+            num_processes = 5)
