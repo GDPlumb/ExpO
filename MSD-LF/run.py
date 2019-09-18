@@ -16,7 +16,7 @@ DATASET_PATH = os.path.join(os.getcwd(), "../Datasets/YearPredictionMSD/")
 
 # Search Space
 datasets = ["msd"]
-regs = [0.1, 0.05, 0.01, 0.005, 0.001]
+regs = [0.1, 0.05, 0.025, 0.01, 0.005, 0.0025, 0.001]
 
 # Run function
 def run_fn(args, evaluate_explanation = True):
@@ -43,7 +43,7 @@ def run_fn(args, evaluate_explanation = True):
     out = eval(manager, source,
            hidden_layer_sizes = shape,
            learning_rate = rate,
-           regularizer = "Causal", c = reg,
+           regularizer = "Causal", c = reg, stddev_reg = 0.5,
            evaluate_explanation = evaluate_explanation,
            stop_on_loss = True,
            min_epochs = 10, stopping_epochs = 10)
@@ -59,7 +59,8 @@ def run_fn_search(*args):
 run_search(run_fn_search = run_fn_search, n_search = 10, lower_is_better = True,
             run_search = False, process_search = False,
             run_fn_final = run_fn, n_final = 20,
-            run_final = True, process_final = True,
+            run_final = False, process_final = True,
             datasets = datasets, source = "../MSD-None/config.json",
             regularized = True, regs = regs,
             num_processes = 4)
+
