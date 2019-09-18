@@ -54,16 +54,15 @@ def eval(manager, source,
 
     # Regularizer Parameters
     if regularizer == "Causal":
-        # Weight of the regularization term in the loss function
-        weight = tf.Variable(0.0, trainable = False)
         # Number of neighbors to hallucinate per point
         num_samples = np.max((20, np.int(2 * n_input)))
-    if regularizer == "Causal1D":
-        # Weight of the regularization term in the loss function (will be set later)
-        weight = tf.Variable(0.0, trainable = False)
+    elif regularizer == "Causal1D":
         # Number of neighbors to hallucinate per point
         num_samples = 20
 
+    if regularizer is not None:
+        # Weight of the regularization term in the loss function (will be set later)
+        weight = tf.Variable(0.0, trainable = False)
 
     # Network Parameters
     shape = [n_input]
@@ -95,6 +94,12 @@ def eval(manager, source,
     elif regularizer == "Causal1D":
         regularizer = Regularizer_1D(network.model, n_input, num_samples, stddev = stddev_reg)
         reg = regularizer.causal(X_reg)
+    elif regularizer == "l2":
+        vars = tf.trainable_variables()
+        reg = tf.add_n([ tf.nn.l2_loss(v) for v in vars if 'bias' not in v.name ])
+    elif regularizer == "l1":
+        vars = tf.trainable_variables()
+        reg = tf.add_n([ tf.reduce_sum(tf.abs(v)) for v in vars if 'bias' not in v.name ])
 
     # Define the loss and optimization process
     if manager in {"regression", "msd"}:
