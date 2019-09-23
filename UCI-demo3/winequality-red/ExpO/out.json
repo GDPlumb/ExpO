@@ -1,0 +1,1 @@
+{"test_acc": 0.7203338146209717, "variance": [0.002082527171296533], "maple_standard_metric": [0.0009270301431661805], "maple_causal_metric": [0.0009875957743614079], "maple_stability_metric": [0.00024762908341598486], "lime_standard_metric": [0.0016196751958645], "lime_causal_metric": [0.0016963241480363938], "lime_stability_metric": [0.00010244301535902552]}
