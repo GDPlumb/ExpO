@@ -1,8 +1,9 @@
 
+seed = 8
 t = 20
-seed = 5
+goal_change = 1.0
+goal_range = 0.1
 
-import csv
 import json
 from lime import lime_tabular
 import numpy as np
@@ -44,9 +45,9 @@ def unpack_coefs(explainer, x, predict_fn, num_features, x_train, num_samples = 
 def iterate(x):
     print("")
     print("Predicted value: ")
-    print(np.round(sess.run(pred, {X: np.expand_dims(x, 0)}), 1)[0][0])
+    print(np.round(sess.run(pred, {X: np.expand_dims(x, 0)}), 2)[0][0])
     coefs = unpack_coefs(exp, x, wrapper.predict_index, n_input, X_train)
-    coefs = np.round(coefs, 1)
+    coefs = np.round(coefs, 2)
     print("Explanation: ")
     for i in range(coefs.shape[0]):
         print(i - 1, coefs[i])
@@ -115,7 +116,7 @@ print("If you enter '0 +', we would expect the model's prediction to increase by
 print("If you enter '1 +', we would expect the model's prediction to decrease by 0.1")
 print("If you enter '1 -', we would expect the model's prediction to increase by 0.1")
 print("")
-print("The goal is to increase the model's precition by 0.5 with a tolerance of plus or minus 0.1")
+print("The goal is to increase the model's precition by " + str(goal_change) + " with a tolerance of plus or minus " + str(goal_range))
 print("")
 
 results = np.zeros((t, 2))
@@ -132,7 +133,7 @@ for i in range(t):
         results[i, 0] = 1.0
         saver.restore(sess, "./ExpO/model.cpkt")
         
-    target = sess.run(pred, {X: np.expand_dims(x, 0)})
+    original_prediction = sess.run(pred, {X: np.expand_dims(x, 0)})
     
     c = 0
     while True:
@@ -140,9 +141,9 @@ for i in range(t):
         iterate(x)
         
         value = sess.run(pred, {X: np.expand_dims(x, 0)})
-        delta = value - target
-        print("Current difference: ", np.round(delta[0][0], 2))
-        if delta < 0.6 and delta > 0.4:
+        delta = (value - original_prediction)[0][0]
+        print("Current change: ", np.round(delta, 2))
+        if delta < (goal_change + goal_range) and delta > (goal_change - goal_range):
             results[i, 1] = c
             print("")
             print("Success!")
@@ -163,4 +164,6 @@ for i in range(t):
         x = mod(x, index, dir)
         c += 1
         
-np.savetxt("results.csv", results, delimiter=",")
+    # Save after each iteration to prevent excessive time loss
+    np.savetxt("results.csv", results, delimiter=",")
+        
