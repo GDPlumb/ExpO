@@ -1,6 +1,6 @@
 
-seed = 0
-t = 250
+seed = 32
+t = 2000
 goal_change = 1.0
 goal_range = 0.1
 
@@ -53,6 +53,7 @@ data = DataManager("../Datasets/housing.csv")
 
 X_train = data.X_train
 n_input = X_train.shape[1]
+n_samples = X_train.shape[0]
 
 # Load the network shape
 with open("../UCI-None/config.json", "r") as f:
@@ -90,7 +91,7 @@ exp = lime_tabular.LimeTabularExplainer(X_train, discretize_continuous = False, 
 # Run Experiment
 ###
 
-options = [0.5, 1.0, 2.0, 5.0, 10.0, 15.0, 20.0]
+options = [0.0, 0.5, 1.0, 2.0, 5.0, 10.0, 15.0, 20.0]
 out = np.zeros((len(options), 3))
 config = 0
 for agent_scale in options:
@@ -99,7 +100,7 @@ for agent_scale in options:
     
     for i in range(t):
 
-        x = X_train[i]
+        x = X_train[i % n_samples]
         
         # Randomly choose a model
         if np.random.uniform() < 0.5:
@@ -160,12 +161,4 @@ for agent_scale in options:
     out[config, 2] = np.mean(expo_vals)
     config += 1
     
-import matplotlib.pyplot as plt
-
-plt.plot(out[:, 0], out[:, 1], label = "None")
-plt.plot(out[:, 0], out[:, 2], label = "ExpO")
-plt.ylabel("Average Number of Steps")
-plt.xlabel("Agent Score Scale Factor")
-plt.legend()
-plt.savefig("agent.pdf")
-plt.close()
+np.savetxt("agent.csv", out, delimiter=",")
