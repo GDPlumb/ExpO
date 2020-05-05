@@ -36,6 +36,8 @@ def eval(manager, source,
         from MedicalData import Support2DataManager as DataManager
     elif manager == "msd":
         from MillionSongData import YearPredictionMSDDataManager as DataManager
+    elif manager == "cancer":
+        from CancerData import CancerDataManager as DataManager
     else:
         raise ValueError("Unknown manager: %s" % manager)
 
@@ -110,7 +112,7 @@ def eval(manager, source,
         perf_op = model_loss
         smaller_is_better = True
 
-    elif manager == "binary_classification":
+    elif manager == "binary_classification" or manager == "cancer":
     
         model_loss = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(labels = Y, logits = pred))
         tf.summary.scalar("Cross-entropy:", model_loss)

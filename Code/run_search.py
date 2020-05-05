@@ -120,12 +120,12 @@ def run_search(run_fn_search = None, n_search = 1, lower_is_better = True, gamma
                                 name = args2name(dataset, "_avg", depth, size, rate)
                                 list_means[name] = mean
 
-            agg[dataset] = list_means
-
             if lower_is_better:
                 sorted_means = sorted(list_means.items(), key = operator.itemgetter(1))
             else:
                 sorted_means = sorted(list_means.items(), key = operator.itemgetter(1), reverse = True)
+                
+            agg[dataset] = sorted_means
 
             # Get the configuration with the best average performance
             args = name2args(sorted_means[0][0])
