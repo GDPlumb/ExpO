@@ -69,8 +69,8 @@ def load_cancer_data(valid_size=0.1, shuffle=True, batch_size=64):
     x = data.drop(["id", "diagnosis", "Unnamed: 32"], axis=1)
     diag = { "M": 1, "B": 0}
     y = data["diagnosis"].replace(diag)
-    x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.2)
-    x_train, x_valid, y_train, y_valid = train_test_split(x_train, y_train, test_size=0.1)
+    x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.25)
+    x_valid, x_test, y_valid, y_test = train_test_split(x_test, y_test, test_size=0.5)
     Tds = []
     Loaders = []
     Data = []
@@ -165,7 +165,7 @@ def main():
 
 
     test_acc = trainer.validate(test_loader, fold = 'test').data.numpy().reshape((1))[0]
-    results['acc']  = np.float64(test_acc)
+    results['acc']  = np.float64(test_acc) / 100
     print('Test accuracy: {:8.2f}'.format(test_acc))
     
     wrapper = Wrapper(model)
@@ -181,7 +181,6 @@ def main():
     results['lime_pf'] = r_lime[0][0]
     results['lime_nf'] = r_lime[1][0]
     results['lime_s'] = r_lime[2][0]
-    
     
     print(results)
     with open("out.json", "w") as f:
