@@ -16,7 +16,7 @@ def eval(manager, source,
          # Training parameters
          batch_size = 128, reg_batch_size = 16, stopping_epochs = 50, min_epochs = 50, stop_on_loss = False, tol = 0.0,
          # Explanation evaluation metrics
-         evaluate_explanation = True, stddev_eval = 0.1):
+         evaluate_explanation = True, stddev_eval = 0.1, apply_sigmoid = False):
 
     # Allow multiple sessions on a single GPU.
     tf_config = tf.ConfigProto()
@@ -233,7 +233,7 @@ def eval(manager, source,
         out["test_acc"] = np.float64(test_acc)
 
         if evaluate_explanation:
-            wrapper = Wrapper(sess, pred, X)
+            wrapper = Wrapper(sess, pred, X, apply_sigmoid = apply_sigmoid)
 
             out["variance"] = metrics_variance(wrapper, data.X_test, stddev = stddev_eval).tolist()
 

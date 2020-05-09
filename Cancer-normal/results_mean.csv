@@ -1,0 +1,2 @@
+,test_acc,variance,maple_standard_metric,maple_causal_metric,maple_stability_metric,lime_standard_metric,lime_causal_metric,lime_stability_metric
+cancer,0.9896048843860626,[0.00064807],[0.0132354],[0.03897614],[0.37633664],[0.10159278],[0.10234157],[0.00235638]

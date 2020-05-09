@@ -187,7 +187,7 @@ def run_search(run_fn_search = None, n_search = 1, lower_is_better = True, gamma
                     data = json.load(f)
 
             for name in columns:
-                df.ix[args[0], name] += np.asarray(data[name]) / n_final
+                df.loc[args[0], name] += np.asarray(data[name]) / n_final
 
         df.to_csv("results_mean.csv")
 
@@ -204,11 +204,11 @@ def run_search(run_fn_search = None, n_search = 1, lower_is_better = True, gamma
                     data = json.load(f)
 
             for name in columns:
-                delta = np.asarray(data[name]) - df.ix[args[0], name]
-                df_sd.ix[args[0], name] += delta**2 / (n_final - 1)
+                delta = np.asarray(data[name]) - df.loc[args[0], name]
+                df_sd.loc[args[0], name] += delta**2 / (n_final - 1)
                 
         for dataset in datasets:
             for column in columns:
-                df_sd.ix[dataset, column] = np.sqrt(df_sd.ix[dataset, column])
+                df_sd.loc[dataset, column] = np.sqrt(df_sd.loc[dataset, column])
 
         df_sd.to_csv("results_sd.csv")

@@ -10,22 +10,32 @@ num_perturbations = 5
 def generate_neighbor(x, stddev = 0.1):
     return x + stddev * np.random.normal(loc=0.0, scale=1.0, size = x.shape)
 
+def sigmoid(x):
+    return 1 / (1 + np.exp(-x))
+  
 # Wrapper for TF models to make prediction easy
 class Wrapper():
-    def __init__(self, sess, pred, X):
+    def __init__(self, sess, pred, X, apply_sigmoid = False):
         self.sess = sess
         self.pred = pred
         self.X = X
         self.index = 0
+        self.apply_sigmoid = apply_sigmoid
 
     def predict(self, x):
-        return self.sess.run(self.pred, feed_dict = {self.X: x})
+        out = self.sess.run(self.pred, feed_dict = {self.X: x})
+        if self.apply_sigmoid:
+            out = sigmoid(out)
+        return out
 
     def set_index(self, i):
         self.index = i
 
     def predict_index(self, x):
-        return np.squeeze(self.sess.run(self.pred, feed_dict = {self.X: x})[:, self.index])
+        out = np.squeeze(self.sess.run(self.pred, feed_dict = {self.X: x})[:, self.index])
+        if self.apply_sigmoid:
+            out = sigmoid(out)
+        return out
 
 # Evaluate MAPLE as a black-box explainer for this model
 def metrics_maple(model, X_train, X_val, X_test, stddev = 0.1):
